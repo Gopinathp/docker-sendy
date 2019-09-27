@@ -49,23 +49,27 @@
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<link rel="Shortcut Icon" type="image/ico" href="/img/favicon.png">
+		<meta name="robots" content="noindex, nofollow">
+		<link rel="Shortcut Icon" type="image/ico" href="img/favicon.png">
 		<title>Unsubscribed</title>
 	</head>
 	<style type="text/css">
 		body{
-			background: #ffffff;
+			background: #f7f9fc;
 			font-family: Helvetica, Arial;
 		}
 		#wrapper 
 		{
-			background: #f2f2f2;
+			background: #ffffff;
+			-webkit-box-shadow: 0px 16px 46px -22px rgba(0,0,0,0.75);
+			-moz-box-shadow: 0px 16px 46px -22px rgba(0,0,0,0.75);
+			box-shadow: 0px 16px 46px -22px rgba(0,0,0,0.75);
 			
 			width: 300px;
 			height: auto;
 			padding-bottom: 10px;
 			
-			margin: -140px 0 0 -150px;
+			margin: -190px 0 0 -150px;
 			position: absolute;
 			top: 50%;
 			left: 50%;
@@ -85,14 +89,23 @@
 		}
 		a{
 			color: #000;
+			text-decoration: none;
 		}
 		a:hover{
-			text-decoration: none;
+			text-decoration: underline;
+		}
+		#top-pattern{
+			margin-top: -8px;
+			height: 8px;
+			background: url("img/top-pattern2.gif") repeat-x 0 0;
+			background-size: auto 8px;
 		}
 	</style>
 	<body>
+		<div id="top-pattern"></div>
 		<div id="wrapper">
 			<h2><?php echo _('Your unsubscribe tag<br/>is working');?></h2>
+			<p><img src="img/tick.jpg" height="92" /></p>
 			<p><?php echo _('Your unsubscribe tag will be converted to a real unsubscribe link when you send out your campaign.');?></p>
 		</div>
 	</body>

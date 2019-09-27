@@ -24,7 +24,16 @@ if($pass=='' || $email=='')
 }
 else
 {
-	$q = 'SELECT id, tied_to, app, auth_enabled, auth_key FROM login WHERE username = "'.$email.'" && password = "'.$pass_encrypted.'" ORDER BY id ASC LIMIT 1';
+	//If logging in using brand's custom domain URL
+	if(CURRENT_DOMAIN!=APP_PATH_DOMAIN)
+	{
+		//Get app id
+		$q = 'SELECT id FROM apps WHERE custom_domain = "'.CURRENT_DOMAIN.'"';
+		$r = mysqli_query($mysqli, $q);
+		if ($r && mysqli_num_rows($r) > 0) while($row = mysqli_fetch_array($r)) $app_id = $row['id'];
+		$app_id_line = 'AND app = '.$app_id;	
+	}
+	$q = 'SELECT id, tied_to, app, auth_enabled, auth_key FROM login WHERE username = "'.$email.'" AND password = "'.$pass_encrypted.'" '.$app_id_line.' ORDER BY id ASC LIMIT 1';
 	$r = mysqli_query($mysqli, $q);
 	if ($r && mysqli_num_rows($r) > 0)
 	{
@@ -37,6 +46,10 @@ else
 			$_SESSION['restricted_to_app'] = $row['app'];
 			$_SESSION['userID'] = $userID;
 	    }
+	    
+	    //Reset any pending password requests
+		$q2 = 'UPDATE login SET reset_password_key = "" WHERE id = '.$userID;
+		mysqli_query($mysqli, $q2);
 		
 		//If 2FA enabled
 		if($auth_enabled)
@@ -55,7 +68,7 @@ else
 		}	
 		//set cookie and log in
 		else if(setcookie('logged_in', hash('sha512', $userID.$email.$pass_encrypted.'PectGtma'), time()+31556926, '/', get_app_info('cookie_domain')))
-		{
+		{			
 			if($tied_to=='')
 			{
 				if($redirect_to=='') header("Location: ".get_app_info('path'));

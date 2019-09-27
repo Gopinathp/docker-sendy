@@ -48,6 +48,7 @@
 	{
 		//detect complaints
 		$obj = json_decode($data->Message);
+		if(!isset($obj->{'complaint'})) exit;
 		$notificationType = $obj->{'notificationType'};
 		$problem_email = $obj->{'complaint'}->{'complainedRecipients'};
 		$problem_email = get_email($problem_email[0]->{'emailAddress'});

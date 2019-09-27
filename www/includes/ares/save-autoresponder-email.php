@@ -28,6 +28,7 @@
 	$track_clicks = isset($_POST['clicks']) ? $_POST['clicks'] : 1;
 	$wysiwyg = $wysiwyg=='1' ? 1 : 0;
 	$time_condition_sign = $time_condition_beforeafter=='before' ? '-' : '+';
+	if(isset($_POST['save-only'])) $save_only = is_numeric($_POST['save-only']) ? $_POST['save-only'] : 0;
 	
 	//get allowed attachments
 	$q = 'SELECT allowed_attachments FROM apps WHERE id = '.get_app_info('app');
@@ -84,14 +85,14 @@
 				}
 			}
 			
-			if($w_clicked)
+			if($w_clicked || $save_only)
 				header('Location: '.get_app_info('path').'/autoresponders-edit?i='.get_app_info('app').'&a='.$ares_id.'&ae='.$ae);
 			else
 				header('Location: '.get_app_info('path').'/autoresponders-emails?i='.get_app_info('app').'&a='.$ares_id);
 		}
 		else
 		{
-			show_error(_('Unable to save autoresponder email'), '<p>'._('Please ensure you have granted FULL privileges to your MySQL user for your database.').'</p><p>Or check <a href="https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next">https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next</a> as you may have "mod_security" enabled on your server.</p>');
+			show_error(_('Unable to save autoresponder email'), '<p>'.mysqli_error($mysqli).'</p><p>Or check <a href="https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next">https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next</a> as you may have "mod_security" enabled on your server.</p>');
 			exit;
 		}
 	}
@@ -124,14 +125,14 @@
 				}
 			}
 			
-			if($w_clicked)
+			if($w_clicked || $save_only)
 				header('Location: '.get_app_info('path').'/autoresponders-edit?i='.get_app_info('app').'&a='.$ares_id.'&ae='.$ae);
 			else
 				header('Location: '.get_app_info('path').'/autoresponders-emails?i='.get_app_info('app').'&a='.$ares_id);
 		}
 		else
 		{
-			show_error(_('Unable to create autoresponder email'), '<p>'._('Please ensure you have granted FULL privileges to your MySQL user for your database.').'</p><p>Or check <a href="https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next">https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next</a> as you may have "mod_security" enabled on your server.</p>');
+			show_error(_('Unable to create autoresponder email'), '<p>'.mysqli_error($mysqli).'</p><p>Or check <a href="https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next">https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next</a> as you may have "mod_security" enabled on your server.</p>');
 			exit;
 		}
 	}

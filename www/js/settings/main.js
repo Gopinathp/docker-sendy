@@ -25,7 +25,22 @@ $(document).ready(function() {
 		reply_to = $form.find('input[name="reply_to"]').val(),
 		send_rate = $form.find('input[name="send_rate"]').val(),
 		ses_send_rate = $form.find('input[name="ses_send_rate"]').val(),
+		query_string = $form.find('input[name="query_string"]').val(),
+		campaign_report_rows = $form.find('input[name="campaign_report_rows"]').val(),
+		gdpr_only = $form.find('input[name="gdpr_only"]').prop('checked'),
+		gdpr_only_ar = $form.find('input[name="gdpr_only_ar"]').prop('checked'),
+		gdpr_options = $form.find('input[name="gdpr_options"]').prop('checked'),
+		recaptcha_sitekey = $form.find('input[name="recaptcha_sitekey"]').val(),
+		recaptcha_secretkey = $form.find('input[name="recaptcha_secretkey"]').val(),
+		test_email_prefix = $form.find('input[name="test_email_prefix"]').val(),
+		brands_rows = $form.find('input[name="brands_rows"]').val(),
 		url = $form.attr('action');
+		
+		if(gdpr_only) gdpr_only = 1;
+		if(gdpr_only_ar) gdpr_only_ar = 1;
+		if(gdpr_options) gdpr_options = 1;
+		
+		//console.log(gdpr_only);
 		
 		//validate email
 		AtPos = email.indexOf("@")
@@ -34,7 +49,7 @@ $(document).ready(function() {
 		else email_valid = true;
 		
 		if(personal_name!="" && company!="" && email!="" && email_valid==true)
-		$.post(url, { uid: uid, personal_name: personal_name, company: company, email: email, password: password, aws_key: aws_key, aws_secret: aws_secret, paypal: paypal, timezone: timezone, language:language, ses_endpoint:ses_endpoint, from_name: from_name, from_email: from_email, reply_to: reply_to, send_rate: send_rate, ses_send_rate: ses_send_rate },
+		$.post(url, { uid: uid, personal_name: personal_name, company: company, email: email, password: password, aws_key: aws_key, aws_secret: aws_secret, paypal: paypal, timezone: timezone, language:language, ses_endpoint:ses_endpoint, from_name: from_name, from_email: from_email, reply_to: reply_to, send_rate: send_rate, ses_send_rate: ses_send_rate, query_string: query_string, campaign_report_rows: campaign_report_rows, gdpr_only: gdpr_only, gdpr_only_ar: gdpr_only_ar, gdpr_options: gdpr_options, recaptcha_sitekey: recaptcha_sitekey, recaptcha_secretkey: recaptcha_secretkey, test_email_prefix: test_email_prefix, brands_rows: brands_rows },
 		  function(data) {
 		      if(data)
 		      {

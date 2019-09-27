@@ -9,7 +9,7 @@
     		
     		if(count($_POST)!=0 && $confirm==1)
     		{
-		    	$q = 'DELETE FROM queue';
+		    	$q = 'TRUNCATE table queue';
 		    	$r = mysqli_query($mysqli, $q);
 		    	if ($r)
 		    	    echo _('The queue table has been cleared successfully!'); 

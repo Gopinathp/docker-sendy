@@ -9,6 +9,15 @@
 			echo '<script type="text/javascript">window.location="'.addslashes(get_app_info('path')).'/reports?i='.get_app_info('restricted_to_app').'"</script>';
 			exit;
 		}
+		else if(get_app_info('campaigns_only')==1 && get_app_info('templates_only')==1 && get_app_info('lists_only')==1 && get_app_info('reports_only')==1)
+		{
+			echo '<script type="text/javascript">window.location="'.addslashes(get_app_info('path')).'/logout"</script>';
+			exit;
+		}
+		else if(get_app_info('reports_only')==1)
+		{
+			go_to_next_allowed_section();
+		}
 	}
 ?>
 <link href="<?php echo get_app_info('path');?>/js/tablesorter/theme.default.min.css" rel="stylesheet">
@@ -31,7 +40,13 @@
     </div> 
     <div class="span10">
     	<div>
-	    	<p class="lead"><?php echo get_app_data('app_name');?></p>
+	    	<p class="lead">
+		    	<?php if(get_app_info('is_sub_user')):?>
+			    	<?php echo get_app_data('app_name');?>
+		    	<?php else:?>
+			    	<a href="<?php echo get_app_info('path'); ?>/edit-brand?i=<?php echo get_app_info('app');?>" data-placement="right" title="<?php echo _('Edit brand settings');?>"><?php echo get_app_data('app_name');?></a>
+		    	<?php endif;?>
+		    </p>
     	</div>
     	<h2><?php echo _('Campaign reports');?></h2><br/>
     	
@@ -43,7 +58,7 @@
 		      <th><?php echo _('Sent');?></th>
 		      <th><?php echo _('Unique Opens');?></th>
 		      <th><?php echo _('Unique Clicks');?></th>
-		      <?php if(!get_app_info('reports_only')):?>
+		      <?php if(get_app_info('reports_only')):?>
 		      <th><?php echo _('Delete');?></th>
 		      <?php endif;?>
 		    </tr>
@@ -51,7 +66,7 @@
 		  <tbody>
 		  	
 		  	<?php 
-		  		$limit = 10;
+		  		$limit = get_app_data('campaign_report_rows');
 				$total_subs = totals($_GET['i'], 'reports');
 				$total_pages = ceil($total_subs/$limit);
 				$p = isset($_GET['p']) ? $_GET['p'] : null;
@@ -178,10 +193,10 @@
 							      <td><i class="icon icon-bar-chart" style="margin-right:3px;"></i> <a href="'.get_app_info('path').'/report?i='.get_app_info('app').'&c='.$id.'" title="">'.$campaign_title.'</a>'.$download_errors.'</td>
 							      <td>'.number_format($recipients).'</td>
 							      <td>'.parse_date($sent, 'long', true).'</td>
-							      <td><span class="label">'.$open_data.'</td>
-							      <td><span class="label">'.$click_data.'</td>';
+							      <td><span class="label label-success">'.$open_data.'</td>
+							      <td><span class="label label-info">'.$click_data.'</td>';
 							      
-							if(!get_app_info('reports_only'))
+							if(get_app_info('reports_only'))
 							      
 								echo '<td><a href="javascript:void(0)" title="'._('Delete').' '.$campaign_title.'?" id="delete-btn-'.$id.'" class="delete-campaign"><i class="icon icon-trash"></i></a></td>
 								      <script type="text/javascript">
@@ -220,14 +235,14 @@
 				  	if(get_app_info('is_sub_user')) 
 				  		echo '<td>'._('There are no reports yet.').'</td>';
 				  	else	
-						echo '<td>'._('There are no reports yet.').' <a href="'.get_app_info('path').'/create?i='.get_app_info('app').'" title="">'._('Create your first campaign').'</a>!</td>';
+						echo '<td>'._('There are no reports yet.').' <a href="'.get_app_info('path').'/create?i='.get_app_info('app').'" title="" style="text-decoration: underline;">'._('Create your first campaign').'</a>!</td>';
 					
 					echo '<td></td>
 					      <td></td>
 					      <td></td>
 					      <td></td>';
 					      
-					if(!get_app_info('reports_only'))
+					if(get_app_info('reports_only'))
 						echo' <td></td>';
 					
 					echo '

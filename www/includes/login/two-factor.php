@@ -8,7 +8,9 @@ require_once('../helpers/two-factor/lib/otphp.php');
 $totp_secret_key = $_SESSION['auth_key'];
 $totp = new \OTPHP\TOTP($totp_secret_key);
 
-if(isset($_POST['redirect'])) $redirect_to = $_POST['redirect'];
+$redirect = mysqli_real_escape_string($mysqli, $_POST['redirect']);
+
+if(isset($redirect)) $redirect_to = $redirect;
 else $redirect_to = '';
 
 //Init OTP

@@ -8,8 +8,8 @@ $fieldseparator = ",";
 $lineseparator = "\n";
 $csvfile = $_FILES['csv_file']['tmp_name'];
 $userID = get_app_info('main_userID');
-$app = $_POST['app'];
-$listID = mysqli_real_escape_string($mysqli, $_POST['list_id']);
+$app = isset($_POST['app']) && is_numeric($_POST['app']) ? mysqli_real_escape_string($mysqli, (int)$_POST['app']) : exit;
+$listID = isset($_POST['list_id']) && is_numeric($_POST['list_id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['list_id']) : exit;
 /********************************/
 
 if(!file_exists($csvfile)) {

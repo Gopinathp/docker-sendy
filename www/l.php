@@ -38,10 +38,24 @@
 	
 	//get variable
 	$i = mysqli_real_escape_string($mysqli, $_GET['i']);
+	$i_array = array();
 	$i_array = explode('/', $i);
+	
+	//new encrytped string
+	if(count($i_array)==1)
+	{
+		$i_array = array();
+		$i_array = explode('/', short($i, true));
+		$i_array[0] = short($i_array[0]);
+		$i_array[1] = short($i_array[1]);
+		$i_array[2] = short($i_array[2]);
+	}
+	
+	//Get all data
 	$userID = short($i_array[0], true);
 	$link_id = short($i_array[1], true);
 	$campaign_id = short($i_array[2], true);
+	$time = time();
 	
 	$q = 'SELECT clicks, link, ares_emails_id FROM links WHERE id = '.$link_id;
 	$r = mysqli_query($mysqli, $q);
@@ -62,14 +76,23 @@
 			}
 	    }  
 	}
+	else
+	{
+		echo '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="Shortcut Icon" type="image/ico" href="'.APP_PATH.'/img/favicon.png"><title>'._('Link no longer exists').'</title></head><style type="text/css">body{background: #ffffff;font-family: Helvetica, Arial;}#wrapper{background: #ffffff; border: 1px solid #ededed; width: 300px;height: 70px;margin: -140px 0 0 -150px;position: absolute;top: 50%;left: 50%;-webkit-border-radius: 5px;-moz-border-radius: 5px;border-radius: 5px;}p{text-align: center;}h2{font-weight: normal;text-align: center;}a{color: #000;}a:hover{text-decoration: none;}#top-pattern{margin-top: -8px;height: 8px;background: url("'.APP_PATH.'/img/top-pattern2.gif") repeat-x 0 0;background-size: auto 8px;}</style><body><div id="top-pattern"></div><div id="wrapper"><h2>'._('Link no longer exists').'</h2></div></body></html>';
+		exit;
+	}
 	
 	//Set click
 	$q2 = 'UPDATE links SET clicks = "'.$val.'" WHERE id = '.$link_id;
 	$r2 = mysqli_query($mysqli, $q2);
 	if ($r2){}
 	
+	//Update subscriber's timestamp
+	$q = 'UPDATE subscribers SET timestamp = "'.$time.'" WHERE id = '.$userID;
+	mysqli_query($mysqli, $q);
+	
 	//Set open
-	$q = $ares_emails_id=='' ? 'SELECT opens FROM campaigns WHERE id = '.$campaign_id : 'SELECT opens FROM ares_emails WHERE id = '.$campaign_id;
+	$q = $ares_emails_id=='' ? 'SELECT opens, app FROM campaigns WHERE id = '.$campaign_id : 'SELECT opens FROM ares_emails WHERE id = '.$campaign_id;
 	$r = mysqli_query($mysqli, $q);
 	if ($r && mysqli_num_rows($r) > 0)
 	{
@@ -77,6 +100,7 @@
 	    while($row = mysqli_fetch_array($r))
 	    {
 			$opens = $row['opens'];
+			$app = $ares_emails_id=='' ? $row['opens'] : 0;
 			$opens_array = explode(',', $opens);
 			foreach($opens_array as $open)
 			{
@@ -91,35 +115,44 @@
 		if($ares_emails_id=='') file_get_contents_curl(APP_PATH.'/t/'.$i_array[2].'/'.$i_array[0]);
 		else file_get_contents_curl(APP_PATH.'/t/'.$i_array[2].'/'.$i_array[0].'/a');
 	}
-	function file_get_contents_curl($url) 
-	{
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_HEADER, 0);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
-		curl_setopt($ch, CURLOPT_URL, $url);
-		curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-		$data = curl_exec($ch);
-		$response_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-		curl_close($ch);
-		
-		if($response_code!=200) return 'blocked';
-		else return $data;
-	}
 	
 	//tags for links
-	$q = 'SELECT name, email, list, custom_fields FROM subscribers WHERE id = '.$userID;
+	$q = 'SELECT subscribers.name, subscribers.email, subscribers.list, subscribers.custom_fields, lists.app FROM subscribers, lists WHERE subscribers.list = lists.id AND subscribers.id = '.$userID;
 	$r = mysqli_query($mysqli, $q);
 	if ($r && mysqli_num_rows($r) > 0)
 	{
 	    while($row = mysqli_fetch_array($r))
 	    {
+			$app = $row['app'];
 			$name = $row['name'];
 			$email = $row['email'];
 			$list_id = $row['list'];
 			$custom_values = $row['custom_fields'];
 	    }  
 	}	
+	
+	//Get custom domain
+	$q2 = 'SELECT custom_domain, custom_domain_protocol, custom_domain_enabled FROM apps WHERE id = '.$app;
+	$r2 = mysqli_query($mysqli, $q2);
+	if ($r2 && mysqli_num_rows($r2) > 0)
+	{
+	    while($row = mysqli_fetch_array($r2))
+	    {
+			$custom_domain = $row['custom_domain'];
+			$custom_domain_protocol = $row['custom_domain_protocol'];
+			$custom_domain_enabled = $row['custom_domain_enabled'];
+			if($custom_domain!='' && $custom_domain_enabled)
+			{
+				$parse = parse_url(APP_PATH);
+				$domain = $parse['host'];
+				$protocol = $parse['scheme'];
+				$app_path = str_replace($domain, $custom_domain, APP_PATH);
+				$app_path = str_replace($protocol, $custom_domain_protocol, $app_path);
+			}
+			else $app_path = APP_PATH;
+	    }  
+	}
+	
 	preg_match_all('/\[([a-zA-Z0-9!#%^&*()+=$@._\-\:|\/?<>~`"\'\s]+),\s*fallback=/i', $link, $matches_var, PREG_PATTERN_ORDER);
 	preg_match_all('/,\s*fallback=([a-zA-Z0-9!,#%^&*()+=$@._\-\:|\/?<>~`"\'\s]*)\]/i', $link, $matches_val, PREG_PATTERN_ORDER);
 	preg_match_all('/(\[[a-zA-Z0-9!#%^&*()+=$@._\-\:|\/?<>~`"\'\s]+,\s*fallback=[a-zA-Z0-9!,#%^&*()+=$@._\-\:|\/?<>~`"\'\s]*\])/i', $link, $matches_all, PREG_PATTERN_ORDER);
@@ -198,13 +231,31 @@
 	//webversion and unsubscribe tags
 	if($ares_emails_id=='') //if link does not belong to an autoresponder campaign
 	{
-		$link = str_replace('[webversion]', APP_PATH.'/w/'.short($userID).'/'.short($list_id).'/'.short($campaign_id), $link);
-		$link = str_replace('[unsubscribe]', APP_PATH.'/unsubscribe/'.short($email).'/'.short($list_id).'/'.short($campaign_id), $link);
+		$link = str_replace('[webversion]', $app_path.'/w/'.short($userID).'/'.short($list_id).'/'.short($campaign_id), $link);
+		$link = str_replace('[unsubscribe]', $app_path.'/unsubscribe/'.short($email).'/'.short($list_id).'/'.short($campaign_id), $link);
 	}
 	else
 	{
-		$link = str_replace('[webversion]', APP_PATH.'/w/'.short($userID).'/'.short($list_id).'/'.short($campaign_id).'/a', $link);
-		$link = str_replace('[unsubscribe]', APP_PATH.'/unsubscribe/'.short($email).'/'.short($list_id).'/'.short($campaign_id).'/a', $link);
+		$link = str_replace('[webversion]', $app_path.'/w/'.short($userID).'/'.short($list_id).'/'.short($campaign_id).'/a', $link);
+		$link = str_replace('[unsubscribe]', $app_path.'/unsubscribe/'.short($email).'/'.short($list_id).'/'.short($campaign_id).'/a', $link);
+	}
+	
+	//--------------------------------------------------------------//
+	function file_get_contents_curl($url) 
+	//--------------------------------------------------------------//
+	{
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_HEADER, 0);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+		$data = curl_exec($ch);
+		$response_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		curl_close($ch);
+		
+		if($response_code!=200) return 'blocked';
+		else return $data;
 	}
 	
 	//redirect to link	

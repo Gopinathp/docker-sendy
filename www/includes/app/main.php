@@ -3,6 +3,8 @@
 	//                      FUNCTIONS                       //
 	//------------------------------------------------------//
 	
+	$app = isset($_GET['i']) && is_numeric($_GET['i']) ? mysqli_real_escape_string($mysqli, (int)$_GET['i']) : exit;
+	
 	//------------------------------------------------------//
 	function get_app_data($val)
 	//------------------------------------------------------//
@@ -24,7 +26,9 @@
 	//------------------------------------------------------//
 	{
 		global $mysqli;
-		$q = 'SELECT '.$val.' FROM apps WHERE id = "'.mysqli_real_escape_string($mysqli, $_GET['i']).'" AND userID = '.get_app_info('userID');
+		global $app;
+		
+		$q = 'SELECT '.$val.' FROM apps WHERE id = "'.mysqli_real_escape_string($mysqli, $app).'" AND userID = '.get_app_info('userID');
 		$r = mysqli_query($mysqli, $q);
 		if ($r && mysqli_num_rows($r) > 0)
 		{
@@ -40,7 +44,9 @@
 	//------------------------------------------------------//
 	{
 		global $mysqli;
-		$q = 'SELECT '.$val.' FROM login WHERE app = '.mysqli_real_escape_string($mysqli, $_GET['i']);
+		global $app;
+		
+		$q = 'SELECT '.$val.' FROM login WHERE app = '.mysqli_real_escape_string($mysqli, $app);
 		$r = mysqli_query($mysqli, $q);
 		if ($r && mysqli_num_rows($r) > 0)
 		{

@@ -21,13 +21,21 @@
     </div> 
     <div class="span10">
     	<div>
-	    	<p class="lead"><?php echo get_app_data('app_name');?></p>
+	    	<p class="lead">
+		    	<?php if(get_app_info('is_sub_user')):?>
+			    	<?php echo get_app_data('app_name');?>
+		    	<?php else:?>
+			    	<a href="<?php echo get_app_info('path'); ?>/edit-brand?i=<?php echo get_app_info('app');?>" data-placement="right" title="<?php echo _('Edit brand settings');?>"><?php echo get_app_data('app_name');?></a>
+		    	<?php endif;?>
+		    </p>
     	</div>
     	<h2><?php echo _('Search all lists');?></h2> <br/>
 		
 		<div class="well">
-			<p><?php echo _('Keyword');?>: <span class="label label-info"><?php echo $s;?></span> | Results <span class="label label-info" id="results-count"></span> <a href="<?php echo get_app_info('path')?>/list?i=<?php echo get_app_info('app');?>" title="" style="float:right;"><i class="icon icon-double-angle-left"></i> <?php echo _('Back to lists');?></a></p>
+			<p><?php echo _('Keyword');?>: <span class="label label-info"><?php echo htmlentities($s);?></span> | Results <span class="label label-info" id="results-count"></span> <a href="<?php echo get_app_info('path')?>/list?i=<?php echo get_app_info('app');?>" title="" style="float:right;"><i class="icon icon-double-angle-left"></i> <?php echo _('Back to lists');?></a></p>
 		</div>
+		
+		<br/>
 		
 	    <table class="table table-striped table-condensed responsive">
 		  <thead>
@@ -43,7 +51,7 @@
 		  </thead>
 		  <tbody>		  	
 		  	<?php		  		
-		  		$q = 'SELECT subscribers.id, subscribers.name, subscribers.email, subscribers.unsubscribed, subscribers.bounced, subscribers.complaint, subscribers.confirmed, subscribers.list, subscribers.timestamp FROM subscribers, lists WHERE (subscribers.name LIKE "%'.$s.'%" OR subscribers.email LIKE "%'.$s.'%" OR subscribers.custom_fields LIKE "%'.$s.'%") AND lists.app = '.get_app_info('app').' AND lists.id = subscribers.list ORDER BY subscribers.timestamp DESC';
+		  		$q = 'SELECT subscribers.id, subscribers.name, subscribers.email, subscribers.unsubscribed, subscribers.bounced, subscribers.complaint, subscribers.confirmed, subscribers.list, subscribers.timestamp FROM subscribers, lists WHERE (subscribers.name LIKE "%'.$s.'%" OR subscribers.email LIKE "%'.$s.'%" OR subscribers.custom_fields LIKE "%'.$s.'%" OR subscribers.notes LIKE "%'.$s.'%") AND lists.app = '.get_app_info('app').' AND lists.id = subscribers.list ORDER BY subscribers.timestamp DESC';
 			  	$r = mysqli_query($mysqli, $q);
 			  	$number_of_results = mysqli_num_rows($r);
 			  	echo '
@@ -119,26 +127,12 @@
 					    
 					    echo'
 					      </td>
-					      <td><a href="javascript:void(0)" title="'._('Delete').' '.$email.'?" id="delete-btn-'.$id.'" class="delete-subscriber"><i class="icon icon-trash"></i></a></td>
+					      <td><a href="#delete-subscriber" title="'._('Delete').' '.$email.'?" data-toggle="modal" id="delete-btn-'.$id.'" class="delete-subscriber"><i class="icon icon-trash"></i></a></td>
 					      <script type="text/javascript">
 					    	$("#delete-btn-'.$id.'").click(function(e){
 								e.preventDefault(); 
-								c = confirm("'._('Confirm delete').' '.$email.'?");
-								if(c)
-								{
-									$.post("includes/subscribers/delete.php", { subscriber_id: '.$id.' },
-									  function(data) {
-									      if(data)
-									      {
-									      	$("#'.$id.'").fadeOut();
-									      }
-									      else
-									      {
-									      	alert("'._('Sorry, unable to delete. Please try again later!').'");
-									      }
-									  }
-									);
-								}
+								$("#delete-subscriber-1, #delete-subscriber-2").attr("data-id", '.$id.');
+								$("#email-to-delete").text("'.$email.'");
 							});
 							$("#unsubscribe-btn-'.$id.'").click(function(e){
 								e.preventDefault(); 
@@ -200,6 +194,22 @@
     </div>   
 </div>
 
+<!-- Delete -->
+<div id="delete-subscriber" class="modal hide fade">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+    <h3><?php echo _('Delete subscriber');?></h3>
+  </div>
+  <div class="modal-body">
+    <p><?php echo _('Delete <span id="email-to-delete" style="font-weight:bold;"></span> from \'this list only\' or \'ALL lists\' in this brand?');?></p>
+    <p></p>
+  </div>
+  <div class="modal-footer">
+    <a href="javascript:void(0)" id="delete-subscriber-1" data-id="" class="btn"><?php echo _('This list only');?></a>
+    <a href="javascript:void(0)" id="delete-subscriber-2" data-id="" class="btn btn-primary"><?php echo _('ALL lists in this brand');?></a>
+  </div>
+</div>
+
 <!-- Subscriber info card -->
 <div id="subscriber-info" class="modal hide fade">
     <div class="modal-header">
@@ -214,6 +224,32 @@
     </div>
   </div>
 <script type="text/javascript">
+	$("#delete-subscriber-1").click(function(e){
+		e.preventDefault(); 
+		$.post("includes/subscribers/delete.php", { subscriber_id: $(this).attr("data-id"), option: 1, app: <?php echo get_app_info('app')?> },
+		  function(data) {
+		      if(data) 
+		      {
+			      $("#delete-subscriber").modal('hide');
+			      $("#"+$("#delete-subscriber-1").attr("data-id")).fadeOut(); 
+			  }
+		      else alert("<?php echo _('Sorry, unable to delete. Please try again later!')?>");
+		  }
+		);
+	});
+	$("#delete-subscriber-2").click(function(e){
+		e.preventDefault(); 
+		$.post("includes/subscribers/delete.php", { subscriber_id: $(this).attr("data-id"), option: 2, app: <?php echo get_app_info('app')?> },
+		  function(data) {
+		      if(data) 
+		      {
+			      $("#delete-subscriber").modal('hide');
+			      $("#"+$("#delete-subscriber-2").attr("data-id")).fadeOut(); 
+			  }
+		      else alert("<?php echo _('Sorry, unable to delete. Please try again later!')?>");
+		  }
+		);
+	});
 	$(".subscriber-info").click(function(){
 		s_id = $(this).data("id");
 		$("#subscriber-text").html("<?php echo _('Fetching');?>..");

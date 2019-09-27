@@ -36,7 +36,10 @@
 ?>
 <?php 
 	$campaign_id = is_numeric($_GET['c']) ? $_GET['c'] : exit;
-	$email_list = explode(',', $_GET['e']);
+	$email_list = mysqli_real_escape_string($mysqli, $_GET['e']);
+	$email_list_exclude = mysqli_real_escape_string($mysqli, $_GET['ex']);
+	$email_lists_segs = mysqli_real_escape_string($mysqli, $_GET['e_segs']);
+	$email_lists_segs_excl = mysqli_real_escape_string($mysqli, $_GET['ex_segs']);
 	$app = is_numeric($_GET['i']) ? $_GET['i'] : exit;
 	$schedule = $_GET['s'];
 	if(isset($_GET['cr'])) $cron = is_numeric($_GET['cr']) ? $_GET['cr'] : exit;
@@ -90,7 +93,7 @@ if($schedule=='true'):
 	$the_date = mysqli_real_escape_string($mysqli, $_GET['date']);
 	$timezone = mysqli_real_escape_string($mysqli, $_GET['timezone']);
 	
-	$q = 'UPDATE campaigns SET send_date = "'.$the_date.'", lists = "'.mysqli_real_escape_string($mysqli, $_GET['e']).'", timezone = "'.$timezone.'", quota_deducted = '.$total_recipients.' WHERE id = '.$campaign_id;
+	$q = 'UPDATE campaigns SET send_date = "'.$the_date.'", lists = "'.$email_list.'", lists_excl = "'.$email_list_exclude.'", segs = "'.$email_lists_segs.'", segs_excl = "'.$email_lists_segs_excl.'", timezone = "'.$timezone.'", quota_deducted = '.$total_recipients.' WHERE id = '.$campaign_id;
 	$r = mysqli_query($mysqli, $q);
 	if($r):
 	?>
@@ -98,22 +101,26 @@ if($schedule=='true'):
 		<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="robots" content="noindex, nofollow">
 		<link rel="Shortcut Icon" type="image/ico" href="<?php echo APP_PATH;?>/img/favicon.png">
 		<title><?php echo _('Your campaign has been scheduled');?></title>
 	</head>
 	<style type="text/css">
 		body{
-			background: #ffffff;
+			background: #f7f9fc;
 			font-family: Helvetica, Arial;
 		}
 		#wrapper 
 		{
-			background: #f2f2f2;
+			background: #ffffff;
+			-webkit-box-shadow: 0px 16px 46px -22px rgba(0,0,0,0.75);
+			-moz-box-shadow: 0px 16px 46px -22px rgba(0,0,0,0.75);
+			box-shadow: 0px 16px 46px -22px rgba(0,0,0,0.75);
 			
 			width: 280px;
 			height: 250px;
 			
-			margin: -190px 0 0 -185px;
+			margin: -190px 0 0 -140px;
 			position: absolute;
 			top: 50%;
 			left: 50%;
@@ -140,11 +147,18 @@ if($schedule=='true'):
 		#sending{
 			margin-left: 95px;
 		}
+		#top-pattern{
+			margin-top: -8px;
+			height: 8px;
+			background: url("<?php echo APP_PATH; ?>/img/top-pattern2.gif") repeat-x 0 0;
+			background-size: auto 8px;
+		}
 	</style>
 	<body>
+		<div id="top-pattern"></div>
 		<div id="wrapper">
 			<h2><?php echo _('Your campaign has been scheduled');?>!</h2>
-			<img id="sending" src="<?php echo APP_PATH;?>/img/scheduled.jpg" />
+			<img id="sending" src="<?php echo APP_PATH;?>/img/scheduled.jpg?2" height="92" />
 			<p><?php echo _('You will be notified by email once your campaign has been sent.');?></p>
 		</div>
 	</body>
@@ -157,6 +171,7 @@ if($schedule=='true'):
 	<html>
 		<head>
 			<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+			<meta name="robots" content="noindex, nofollow">
 			<script type="text/javascript" src="<?php echo APP_PATH;?>/js/jquery-1.9.1.min.js"></script>
 			<script type="text/javascript" src="<?php echo APP_PATH;?>/js/jquery-migrate-1.1.0.min.js"></script>
 			<link rel="Shortcut Icon" type="image/ico" href="<?php echo APP_PATH;?>/img/favicon.png">
@@ -164,16 +179,32 @@ if($schedule=='true'):
 			<?php if($sent==''):?>
 			<script type="text/javascript">
 				$(document).ready(function() {
-					list = [<?php 
-						for($i=0;$i<count($email_list);$i++)
-						{
-							echo "'".htmlspecialchars(addslashes($email_list[$i]))."'";
-							
-							if($i<count($email_list)-1)
-								echo ',';
-						}
-					?>];
-					$.post("<?php echo APP_PATH;?>/includes/create/send-now.php", { campaign_id: <?php echo $campaign_id;?>, email_list: list, app: <?php echo $app;?>, cron: <?php echo $cron;?> },
+					
+					<?php if($email_list!=''):?>
+						list = "<?php echo $email_list;?>";
+					<?php else:?>
+						list = "0";
+					<?php endif;?>
+					
+					<?php if($email_lists_segs!=''):?>
+						list_segs = "<?php echo $email_lists_segs;?>";
+					<?php else:?>
+						list_segs = "0";
+					<?php endif;?>
+					
+					<?php if($email_list_exclude!=''):?>
+						list_excl = "<?php echo $email_list_exclude;?>";
+					<?php else:?>	
+						list_excl = "0";
+					<?php endif;?>
+					
+					<?php if($email_lists_segs_excl!=''):?>
+						list_excl_segs = "<?php echo $email_lists_segs_excl;?>";
+					<?php else:?>	
+						list_excl_segs = "0";
+					<?php endif;?>
+					
+					$.post("<?php echo APP_PATH;?>/includes/create/send-now.php", { campaign_id: <?php echo $campaign_id;?>, email_list: list, email_list_exclude: list_excl, email_lists_segs: list_segs, email_lists_segs_excl: list_excl_segs, app: <?php echo $app;?>, cron: <?php echo $cron;?>, total_recipients: <?php echo $total_recipients;?> },
 					  function(data) {
 					      if(data){}
 					  }
@@ -183,13 +214,16 @@ if($schedule=='true'):
 			<?php endif;?>
 		</head>
 		<style type="text/css">
-			body{
-			background: #ffffff;
+		body{
+			background: #f7f9fc;
 			font-family: Helvetica, Arial;
 		}
 		#wrapper 
 		{
-			background: #f2f2f2;
+			background: #ffffff;
+			-webkit-box-shadow: 0px 16px 46px -22px rgba(0,0,0,0.75);
+			-moz-box-shadow: 0px 16px 46px -22px rgba(0,0,0,0.75);
+			box-shadow: 0px 16px 46px -22px rgba(0,0,0,0.75);
 			
 			width: 350px;
 			height: 250px;
@@ -214,18 +248,26 @@ if($schedule=='true'):
 		}
 		a{
 			color: #000;
+			text-decoration: none;
 		}
 		a:hover{
-			text-decoration: none;
+			text-decoration: underline;
 		}
 		#sending{
 			margin-left: 130px;
 		}
+		#top-pattern{
+			margin-top: -8px;
+			height: 8px;
+			background: url("<?php echo APP_PATH; ?>/img/top-pattern2.gif") repeat-x 0 0;
+			background-size: auto 8px;
+		}
 		</style>
 		<body>
+			<div id="top-pattern"></div>
 			<div id="wrapper">
 				<h2><?php echo _('Your campaign is on the way!');?></h2>
-				<img id="sending" src="<?php echo APP_PATH;?>/img/sending.jpg" />
+				<img id="sending" src="<?php echo APP_PATH;?>/img/sending.jpg?2" height="92" />
 				<p><?php echo _('You can close this window and your campaign will continue to send. You will be notified by email once your campaign has completed sending.');?></p>
 			</div>
 		</body>

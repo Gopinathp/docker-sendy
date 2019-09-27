@@ -24,7 +24,7 @@
 	//------------------------------------------------------//
 	{
 		global $mysqli;
-		$q = 'SELECT '.$val.' FROM ares WHERE id = '.mysqli_real_escape_string($mysqli, $_GET['a']);
+		$q = 'SELECT '.$val.' FROM ares WHERE id = '.mysqli_real_escape_string($mysqli, (int)$_GET['a']);
 		$r = mysqli_query($mysqli, $q);
 		if ($r && mysqli_num_rows($r) > 0)
 		{
@@ -92,7 +92,7 @@
 		global $mysqli;
 		global $edit;
 		
-		$id = $ares_email_id==0 ? mysqli_real_escape_string($mysqli, $_GET['ae']) : $ares_email_id;
+		$id = $ares_email_id==0 ? mysqli_real_escape_string($mysqli, (int)$_GET['ae']) : $ares_email_id;
 		
 		$q = 'SELECT '.$val.' FROM ares_emails WHERE id = '.$id;
 		$r = mysqli_query($mysqli, $q);

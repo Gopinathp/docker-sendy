@@ -9,7 +9,7 @@
     		
     		if(count($_POST)!=0 && $confirm==1)
     		{
-		    	$q = 'UPDATE login SET cron = 0, cron_ares = 0, cron_csv = 0';
+		    	$q = 'UPDATE login SET cron = 0, cron_ares = 0, cron_csv = 0, cron_seg = 0';
 		    	$r = mysqli_query($mysqli, $q);
 		    	if ($r)
 		    	    echo _('Cron setup has been reset. You\'ll now be able to see cron setup instructions.'); 

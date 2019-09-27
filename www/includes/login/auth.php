@@ -2,8 +2,13 @@
 	if(isset($_COOKIE['logged_in'])) $cookie = $_COOKIE['logged_in'];
 	else $cookie = '';
 	
-	if($cookie==hash('sha512', get_app_info('userID').get_app_info('email').get_app_info('password').'PectGtma'))
-		start_app();
+	if(
+		!is_null(get_app_info('userID')) && 
+		!is_null(get_app_info('email')) && 
+		!is_null(get_app_info('password')) && 
+		$cookie===hash('sha512', get_app_info('userID').get_app_info('email').get_app_info('password').'PectGtma')
+	   )
+	   		start_app();
 	else
 	{
 		$request_uri = $_SERVER['REQUEST_URI'];

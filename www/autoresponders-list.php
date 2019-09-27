@@ -4,7 +4,8 @@
 
 <?php 
 	//IDs
-	$lid = isset($_GET['l']) && is_numeric($_GET['l']) ? mysqli_real_escape_string($mysqli, $_GET['l']) : exit;
+	$lid = isset($_GET['l']) && is_numeric($_GET['l']) ? mysqli_real_escape_string($mysqli, (int)$_GET['l']) : exit;
+	$app = isset($_GET['i']) && is_numeric($_GET['i']) ? mysqli_real_escape_string($mysqli, (int)$_GET['i']) : exit;
 	
 	if(get_app_info('is_sub_user')) 
 	{
@@ -38,7 +39,9 @@
 		<?php endif;?>
 		
 		$("#new-autoresponder-btn").click(function(){
-			$("#autoresponder-form").slideDown();
+			$("#autoresponder-form").slideDown(function(){
+				$("#autoresponder_name").focus();
+			});
 			$(this).slideUp();
 		});
 		
@@ -58,6 +61,8 @@
 				autoresponder_name: "<?php echo addslashes(_('Autoresponder name is required'));?>"
 			}
 		});
+		
+		$("#autoresponder_name").focus();
 	});
 </script>
 
@@ -69,7 +74,13 @@
     	<div class="row-fluid">
 	    	<div class="span12">
 		    	<div>
-			    	<p class="lead"><?php echo get_app_data('app_name');?></p>
+			    	<p class="lead">
+		    	<?php if(get_app_info('is_sub_user')):?>
+			    	<?php echo get_app_data('app_name');?>
+		    	<?php else:?>
+			    	<a href="<?php echo get_app_info('path'); ?>/edit-brand?i=<?php echo get_app_info('app');?>" data-placement="right" title="<?php echo _('Edit brand settings');?>"><?php echo get_app_data('app_name');?></a>
+		    	<?php endif;?>
+		    </p>
 		    	</div>
 		    	<h2><?php echo _('Autoresponders');?></h2>
 				<br/>
@@ -123,7 +134,13 @@
 	    
 	    <?php else: ?>
 				  
-	    <div class="alert alert-info"><?php echo _('All autoresponders have been created.');?></div>
+	    <div class="alert alert-info">
+		    <h3><i class="icon icon-info-sign"></i> <?php echo _('All types of autoresponders have been created');?></h3><br/>
+		    <ul>
+			    <li><?php echo _('You can create more emails in each type of autoresponder that you have previously created below.');?></li>
+			    <li><?php echo _('To create more \'Send annually\' and \'Send on date\' autoresponders, add more \'Date based\' custom fields to this list.');?></li>
+			</ul>
+		</div>
 				  
 	    <?php endif;?>
 	    
@@ -269,9 +286,10 @@
 						  <?php endif; ?>
 						  
 						  <br/>
-						  <input type="hidden" name="id" value="<?php echo $_GET['i'];?>"></input>
+						  <input type="hidden" name="id" value="<?php echo $app;?>"></input>
 						  <input type="hidden" name="list" value="<?php echo $lid;?>"></input>
-						  <button class="btn btn-inverse" type="submit"><?php echo _('Save & next');?></button> <?php echo _('or');?> <a href="javascript:void(0)" id="cancel-btn"><?php echo _('cancel');?></a>
+						  <button class="btn btn-inverse" type="submit"><?php echo _('Save & next');?></button> 
+						  <a href="javascript:void(0)" id="cancel-btn"><span class="icon icon-remove-sign"></span> <?php echo _('Cancel');?></a>
 					  </div>
 				  </div>
 				  

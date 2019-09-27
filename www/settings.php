@@ -2,7 +2,17 @@
 <?php include('includes/login/auth.php');?>
 <?php include('includes/settings/main.php');?>
 <?php include('includes/create/timezone.php');?>
-<script type="text/javascript" src="<?php echo get_app_info('path');?>/js/settings/main.js?5"></script>
+<?php check_simplexml();?>
+<script type="text/javascript" src="<?php echo get_app_info('path');?>/js/settings/main.js?9"></script>
+<script type="text/javascript">
+	$(document).ready(function() {
+		//accordion
+		$("#collapse0").on('shown', function(){$("#aws_key").focus();});
+		$("#collapse2").on('shown', function(){$("#send_rate").focus();});
+		$("#collapse3").on('shown', function(){$("#paypal").focus();});
+		$("#collapse4").on('shown', function(){$("#brands_rows").focus();});
+	});
+</script>
 <div class="row-fluid">
 	<div class="span2">
 		
@@ -12,68 +22,9 @@
 		
 		<?php else:?>
 		
-		<h3><?php echo _('Amazon SES Quota');?></h3><br/>
-		<div class="well">
-			<?php
-				if(get_app_info('s3_key')=='' && get_app_info('s3_secret')==''){}
-				else
-				{
-					require_once('includes/helpers/ses.php');
-					$ses = new SimpleEmailService(get_app_info('s3_key'), get_app_info('s3_secret'), get_app_info('ses_endpoint'));
-					
-					//Get success or error codes from API call
-					$testAWSCreds = $ses->getSendQuota();
-					
-					$quoteArray = array();
-					
-					foreach($ses->getSendQuota() as $quota){
-						array_push($quoteArray, $quota);
-					}
-					
-					$ses_send_rate = round($quoteArray[1]);
-				}
-			?>
-			<?php if(get_app_info('s3_key')=='' && get_app_info('s3_secret')==''):?>
-			
-				<p><strong><?php echo _('Amazon SES is not set up as we can\'t find your AWS credentials in');?> <a href="<?php echo get_app_info('path');?>/settings" style="text-decoration: underline"><?php echo _('settings');?></a>.</strong></p>
-				<p><strong><?php echo _('If you entered SMTP credentials when you create or edit a brand, emails will be sent via SMTP. Otherwise, emails will be sent via your server (not recommended).');?></strong></p>
-				<p><a href="https://sendy.co/get-started" target="_blank"><?php echo _('View Get Started guide');?> &rarr;</a></p>
-				
-			<?php else:?>
-			
-				<p><strong><?php echo _('SES Region');?>:</strong> <span class="label"><?php echo get_app_info('ses_region');?></span></p>
-				<p><strong><?php echo _('Max send in 24hrs');?>:</strong> <span class="label"><?php echo number_format(round($quoteArray[0]));?></span></p>
-				<p><strong><?php echo _('Max send rate');?>:</strong> <span class="label"><?php echo number_format(round($quoteArray[1]));?> <?php echo _('per sec');?></span></p>
-				<p><strong><?php echo _('Sent last 24hrs');?>:</strong> <span class="label"><?php echo number_format(round($quoteArray[2]));?></span></p>
-				<p><strong><?php echo _('Sends left');?>:</strong> <span class="label"><?php echo number_format(round($quoteArray[0]-$quoteArray[2]));?></span></p>
-				
-				<?php if($testAWSCreds=='AccessDenied'):?>
-				<br/>
-				<span style="color:#BB4D47;"><p><strong><?php echo _('Error');?>: AccessDenied</strong></p><p><?php echo _('Your Sendy installation is unable to get your SES quota from Amazon because you did not attach "AmazonSESFullAccess" user policy to your IAM credentials. Please re-do Step 5.2 and 5.3 of the <a href="https://sendy.co/get-started" target="_blank">Get Started Guide</a> carefully to resolve this error.');?></p></span>
-				
-				<?php elseif($testAWSCreds=='RequestExpired'):?>
-				<br/>
-				<span style="color:#BB4D47;"><p><strong><?php echo _('Error');?>: RequestExpired</strong></p><p><?php echo _('Your Sendy installation is unable to get your SES quota from Amazon because your server clock is out of sync with NTP. To fix this, Amazon requires you to <strong>sync your server clock with NTP</strong>. Request your host to sync your server clock with NTP with the following command via SSH:');?></p><p><code>sudo /usr/sbin/ntpdate 0.north-america.pool.ntp.org 1.north-america.pool.ntp.org 2.north-america.pool.ntp.org 3.north-america.pool.ntp.org</code></p></span>
-				
-				<?php elseif($testAWSCreds=='InvalidClientTokenId'):?>
-				<br/>
-				<span style="color:#BB4D47;"><p><strong><?php echo _('Error');?>: InvalidClientTokenId</strong></p><p><?php echo _('Your Sendy installation is unable to get your SES quota from Amazon because the \'Amazon Web Services Credentials\' set in Sendy\'s main Settings are incorrect. You probably did not copy and pasted your IAM credentials fully or properly into the settings. Please re-do Step 5.2 and 5.3 of the <a href="https://sendy.co/get-started" target="_blank">Get Started Guide</a> carefully to resolve this error.');?></p></span>
-				
-				<?php elseif($testAWSCreds=='OptInRequired'):?>
-				<br/>
-				<span style="color:#BB4D47;"><p><strong><?php echo _('Error');?>: OptInRequired</strong></p><p><?php echo _('Your Sendy installation is unable to get your SES quota from Amazon because you have not completed your sign up of Amazon SES. Here\'s what you should do:');?></p><ol><li><?php echo _('Visit');?> <a href="https://console.aws.amazon.com/ses/signup" target="_blank"><?php echo _('your Amazon SES console');?></a></li><li><?php echo _('Click the \'Sign Up For Amazon SES\' button to finish your signup');?></li></ol><p><?php echo _('Once you\'ve completed your signup, this error will disappear.');?></p></span>
-				
-				<?php elseif(number_format(round($quoteArray[0]))=='200'):?>
-				<br/>
-				<span style="color:#BB4D47;"><p><?php echo _('You\'re currently in Amazon SES\'s "Sandbox mode".');?></p><p><?php echo _('Please request Amazon to "<a href="http://aws.amazon.com/ses/fullaccessrequest/" target="_blank">raise your SES Sending Limits</a>" to be able to send to and from any email address as well as raise your daily sending quota from 200 to any number you need.');?></p><p><?php echo _('Please also make sure to select the same \'Region\' as what is set in your Sendy Settings (under \'Amazon SES region\') when requesting for \'SES Sending Limits\' increase.');?></p></span>
-				
-				<?php elseif(number_format(round($quoteArray[0]))=='0' && number_format(round($quoteArray[1]))=='0' && number_format(round($quoteArray[2]))=='0' && get_app_info('s3_key')!='' && get_app_info('s3_key')!=''):?>
-				<br/>
-				<span style="color:#BB4D47;"><p><strong><?php echo _('Error');?>: <?php echo $ses->getSendQuota();?></strong></p></span>
-				
-				<?php endif;?>
-			
-			<?php endif;?>
+		<div class="sidebar-nav sidebar-box" style="padding: 19px;">
+			<h3><?php echo _('Amazon SES Quota');?></h3><br/>
+			<?php include('includes/helpers/ses-quota.php');?>
 		</div>
 		
 		<?php endif;?>
@@ -122,20 +73,20 @@
 	        <label class="control-label" for="password"><?php echo _('Password (leave blank to not change it)');?></label>
 	    	<div class="control-group">
 		    	<div class="controls">
-	              <input type="password" class="input-xlarge" id="password" name="password" placeholder="<?php echo _('Your password');?>" autocomplete="off">
+	              <input type="password" class="input-xlarge" id="password" name="password" placeholder="<?php echo _('Your password');?>" autocomplete="new-password">
 	            </div>
 	        </div>
 	        
 	        <div>
 		        <div id="enable-2fa-btn" style="display: <?php echo get_user_data('auth_enabled') ? 'none' : 'block'; ?>">
 			        <p><?php echo _('Two-factor authentication is currently <strong class="label">disabled</strong>');?></p>
-			        <button id="enable-two-factor-btn">
+			        <button id="enable-two-factor-btn" class="btn">
 			        	<span class="icon icon-key"></span> <?php echo _('Enable two-factor authentication');?>
 			        </button>
 			    </div>
 			    <div id="disable-2fa-btn" style="display: <?php echo get_user_data('auth_enabled') ? 'block' : 'none'; ?>">
 				    <p><?php echo _('Two-factor authentication is currently <strong class="label label-success">enabled</strong>');?></p>
-			    	<button id="disable-two-factor-btn">
+			    	<button id="disable-two-factor-btn" class="btn">
 			    		<span class="icon icon-key"></span> <?php echo _('Disable two-factor authentication');?>
 			    	</button>
 			    	<p id="re-key"><a href="javascript:void(0)" id="regenerate-key"><span class="icon icon-refresh"></span> <?php echo _('Regenerate secret key');?></a></p>
@@ -143,7 +94,7 @@
 		    </div>
 		    <br/>
 		    
-		    <div id="two-factor-setup">
+		    <div id="two-factor-setup" class="well">
 			    	<p>
 				    	<strong><?php echo _('What is "Two-factor authentication"?');?></strong><br/>
 				    	<?php echo _('Two-factor authentication provides an additional layer of security by requiring a one time password (OTP) in addition to email & password credentials. You can get OTP codes without an internet or cellular connection using a <a href="#two_factor_apps"data-toggle="modal" style="text-decoration:underline;">two-factor application</a>.');?>
@@ -154,10 +105,10 @@
 				    <br/>
 				    <p><?php echo _('<strong>Step 2</strong>: Use your <a href="#two_factor_apps"data-toggle="modal" style="text-decoration:underline;">two-factor application</a> to generate an OTP code, then paste it below:');?></p>
 				    <p><input type="text" class="input-xlarge" id="otp" name="otp" placeholder="<?php echo _('OTP code, eg. 123456');?>" autocomplete="off"></p>
-				    <button id="confirm-two-factor-btn"><span class="icon icon-chevron-sign-right"></span> <?php echo _('Confirm and enable two-factor authentication');?></button>
+				    <button id="confirm-two-factor-btn" class="btn"><span class="icon icon-chevron-sign-right"></span> <?php echo _('Confirm and enable two-factor authentication');?></button>
 				    <br/>
 				    <br/>
-				    <a href="javascript:void(0)" id="cancel-two-factor"><span class="icon icon-angle-left"></span> Cancel</a>
+				    <a href="javascript:void(0)" id="cancel-two-factor"><span class="icon icon-remove-sign"></span> Cancel</a>
 				    <br/>
 		    </div>
 	        <br/>
@@ -174,8 +125,8 @@
 			<div class="well">
 				<p class="google-auth"><img src="img/google-authenticator.png" title="Google Authenticator" width="100" height="100"/></p><br/>
 				<div class="google-auth-links">
-					<p><span class="icon icon-apple"></span> <strong><?php echo _('iOS');?></strong> → <a href="https://itunes.apple.com/en/app/google-authenticator/id388497605?mt=8" target="_blank">https://itunes.apple.com/en/app/google-authenticator/id388497605?mt=8</a></p>
-					<p><span class="icon icon-android"></span> <strong><?php echo _('Android');?></strong> → <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en" target="_blank">https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en</a></p>
+					<p><span class="icon icon-apple"></span> <strong><?php echo _('iOS');?></strong> → <a href="https://itunes.apple.com/app/google-authenticator/id388497605?mt=8" target="_blank">https://itunes.apple.com/app/google-authenticator/id388497605?mt=8</a></p>
+					<p><span class="icon icon-android"></span> <strong><?php echo _('Android');?></strong> → <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank">https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2</a></p>
 				</div>
 			</div>
 			</div>
@@ -190,8 +141,15 @@
 		        $base32 = new Base32();
 		        $secret_key_ran = strtoupper(ran_string(10, 10, true, false, true));
 		        $secret_key = $base32->encode($secret_key_ran);
-		        $r = mysqli_query($mysqli, 'SELECT company FROM login WHERE id = '.get_app_info('main_userID'));
-		        if ($r) while($row = mysqli_fetch_array($r)) $main_company = $row['company'];  
+		        $r = mysqli_query($mysqli, 'SELECT company, username FROM login WHERE id = '.get_app_info('main_userID'));
+		        if ($r) 
+		        {
+			        while($row = mysqli_fetch_array($r)) 
+			        {
+				        $main_company = $row['company'];  
+				        $main_email = $row['username'];  
+				    }
+			    }
 		        $issuer = get_app_info('is_sub_user') ? $main_company : 'Sendy';
 		        $qrcode = 'http://chart.apis.google.com/chart?cht=qr&chs=200x200&chl=otpauth://totp/'.$issuer.':'.get_app_info('email').'?secret='.$secret_key.'&issuer='.$issuer;
 	        ?>
@@ -300,95 +258,297 @@
 	        
 	        <br/><br/>
 			<?php if(!get_app_info('is_sub_user')): //if not sub user ?>
-			<hr/>
-			<h3><?php echo _('Amazon Web Services Credentials');?></h3><br/>
 			
-	        <label class="control-label" for="aws_key"><?php echo _('AWS Access Key ID');?></label>
-	    	<div class="control-group">
-		    	<div class="controls">
-	              <input type="text" class="input-xlarge" id="aws_key" name="aws_key" placeholder="<?php echo _('AWS Access Key ID');?>" value="<?php echo get_user_data('s3_key');?>">
-	            </div>
-	        </div>
-	        
-	        <label class="control-label" for="aws_secret"><?php echo _('AWS Secret Access Key');?></label>
-	    	<div class="control-group">
-		    	<div class="controls">
-	              <input type="password" class="input-xlarge" id="aws_secret" name="aws_secret" placeholder="<?php echo _('AWS Secret Acesss Key');?>" value="<?php echo get_user_data('s3_secret');?>">
-	            </div>
-	        </div>
-	        <br/>
-	        
-			<h3><?php echo _('Amazon SES region');?></h3><br/>	  
-			<p style="width: 280px;"><?php echo _('Select your Amazon SES region. Please select the same region as what\'s set in your Amazon SES console in the region selection drop down menu at the top right.');?></p>      
-	        <label for="ses_endpoint"><?php echo _('Your Amazon SES region');?></label>
-	        <?php 
-		        if(get_user_data('ses_endpoint')=='email.us-east-1.amazonaws.com') $endpoint_name = 'N. Virginia';
-		        else if(get_user_data('ses_endpoint')=='email.us-west-2.amazonaws.com') $endpoint_name = 'Oregon';
-		        else if(get_user_data('ses_endpoint')=='email.eu-west-1.amazonaws.com') $endpoint_name = 'Ireland';
-	        ?>
-    		<select id="ses_endpoint" name="ses_endpoint">
-			  <option value="<?php echo get_user_data('ses_endpoint');?>"><?php echo $endpoint_name;?></option> 
-			  <?php if($endpoint_name == 'N. Virginia'):?>
-			  <option value="email.us-west-2.amazonaws.com">Oregon</option>
-			  <option value="email.eu-west-1.amazonaws.com">Ireland</option>
-			  <?php elseif($endpoint_name == 'Oregon'):?>
-			  <option value="email.us-east-1.amazonaws.com">N. Virginia</option> 
-			  <option value="email.eu-west-1.amazonaws.com">Ireland</option>
-			  <?php elseif($endpoint_name == 'Ireland'):?>
-			  <option value="email.us-east-1.amazonaws.com">N. Virginia</option> 
-			  <option value="email.us-west-2.amazonaws.com">Oregon</option>
-			  <?php endif;?>
-			</select>
-	        <br/><br/><br/>
-	        
-	        <?php if(get_app_info('s3_key')!='' && get_app_info('s3_secret')!=''):?>
-	        <h3><?php echo _('Sending rate');?></h3><br/>
-			<p style="width: 280px;"><?php echo _('Sendy sends bulks of emails in parallel per second according to your Amazon SES send rate. Depending on the capability of your server, your server may have trouble processing huge bulks of emails efficiently if your SES send rate is very high. Lowering your send rate may yield better sending speed and stability.');?></p> 
-	        <label class="control-label" for="aws_key"><?php echo _('Adjust sending rate'); echo ' '; echo '('; echo _('Max'); echo ': '; echo $ses_send_rate; echo ')';?></label>
-	    	<div class="control-group">
-	            <div class="input-prepend input-append">
-	              <input type="text" class="input-xlarge" id="send_rate" name="send_rate" value="<?php echo get_user_data('send_rate')=='' || get_user_data('send_rate')==0 ? $ses_send_rate : get_user_data('send_rate');?>" style="width: 80px;"><span class="add-on"><?php echo _('emails per second');?></span>
-	              <input type="hidden" id="ses_send_rate" name="ses_send_rate" value="<?php echo $ses_send_rate;?>">
-	            </div>
-	        </div>
-	        <br/>
-	        <?php endif;?>
-	        
-	        <hr/>
-	        <h3><?php echo _('PayPal account');?></h3><br/>
-	        <p style="width: 280px;"><?php echo _('If you charge your client(s) a fee for sending newsletters, they\'ll pay to this PayPal account. Also, don\'t forget to turn <strong>Auto Return</strong> ON in your PayPal account under <strong>Profile > My sellings tools > Website preferences</strong> so that your client will be automatically re-directed to the sending script after payment. Just use your website\'s URL for the <strong>Return URL</strong> to be able to save.');?></p>
-	        <label class="control-label" for="paypal"><?php echo _('PayPal email address');?></label>
-	    	<div class="control-group">
-		    	<div class="controls">
-	              <input type="text" class="input-xlarge" id="paypal" name="paypal" placeholder="<?php echo _('PayPal account email address');?>" value="<?php echo get_user_data('paypal');?>">
-	            </div>
-	        </div>
+			<hr/>
+			
+			<div class="accordion" id="accordion">
+				
+				<div class="accordion-group">
+					<div class="accordion-heading">
+						<a href="#collapse0" class="accordion-toggle" data-parent="#accordion" data-toggle="collapse"><h3><span class="icon icon-key"></span> <?php echo _('Amazon Web Services Credentials');?></h3></a>
+					</div>
+					
+					<div id="collapse0" class="accordion-body collapse">
+						<p class="alert"><span class="icon icon-info-sign"></span> <?php echo _('Please see Step 5 of the Get Started Guide on how to create a set of IAM credentials to hook up your Amazon SES account with your Sendy installation');?> &rarr; <a href="https://sendy.co/get-started#step5" target="_blank">https://sendy.co/get-started#step5</a></p>
+				        <label class="control-label" for="aws_key"><?php echo _('AWS Access Key ID');?></label>
+				    	<div class="control-group">
+					    	<div class="controls">
+				              <input type="text" class="input-xlarge" id="aws_key" name="aws_key" placeholder="<?php echo _('AWS Access Key ID');?>" value="<?php echo get_user_data('s3_key');?>">
+				            </div>
+				        </div>
+				        
+				        <label class="control-label" for="aws_secret"><?php echo _('AWS Secret Access Key');?></label>
+				    	<div class="control-group">
+					    	<div class="controls">
+				              <input type="password" class="input-xlarge" id="aws_secret" name="aws_secret" placeholder="<?php echo _('AWS Secret Acesss Key');?>" value="<?php echo get_user_data('s3_secret');?>">
+				            </div>
+				        </div>
+				        <br/>
+					</div>
+				</div>
+		        
+		        <div class="accordion-group">
+					<div class="accordion-heading">
+						<a href="#collapse1" class="accordion-toggle" data-parent="#accordion" data-toggle="collapse"><h3><span class="icon icon-globe"></span> <?php echo _('Amazon SES region');?></h3></a>
+					</div>
+					
+					<div id="collapse1" class="accordion-body collapse">
+						<p class="alert"><span class="icon icon-info-sign"></span> <?php echo _('Please select the same region as what\'s set in your Amazon SES console in the region selection drop down menu at the top right.');?></p>      
+				        <label for="ses_endpoint"><?php echo _('Your Amazon SES region');?></label>
+				        <?php 
+					        if(get_user_data('ses_endpoint')=='email.us-east-1.amazonaws.com') $endpoint_name = 'N. Virginia';
+					        else if(get_user_data('ses_endpoint')=='email.us-west-2.amazonaws.com') $endpoint_name = 'Oregon';
+					        else if(get_user_data('ses_endpoint')=='email.eu-west-1.amazonaws.com') $endpoint_name = 'Ireland';
+				        ?>
+			    		<select id="ses_endpoint" name="ses_endpoint">
+						  <option value="<?php echo get_user_data('ses_endpoint');?>"><?php echo $endpoint_name;?></option> 
+						  <?php if($endpoint_name == 'N. Virginia'):?>
+						  <option value="email.us-west-2.amazonaws.com">Oregon</option>
+						  <option value="email.eu-west-1.amazonaws.com">Ireland</option>
+						  <?php elseif($endpoint_name == 'Oregon'):?>
+						  <option value="email.us-east-1.amazonaws.com">N. Virginia</option> 
+						  <option value="email.eu-west-1.amazonaws.com">Ireland</option>
+						  <?php elseif($endpoint_name == 'Ireland'):?>
+						  <option value="email.us-east-1.amazonaws.com">N. Virginia</option> 
+						  <option value="email.us-west-2.amazonaws.com">Oregon</option>
+						  <?php endif;?>
+						</select>
+				        <br/><br/>
+					</div>
+		        </div>
+		        
+		        <?php if(get_app_info('s3_key')!='' && get_app_info('s3_secret')!=''):?>
+		        
+		        <div class="accordion-group">
+					<div class="accordion-heading">
+				        <a href="#collapse2" class="accordion-toggle" data-parent="#accordion" data-toggle="collapse"><h3><span class="icon icon-time"></span> <?php echo _('Sending rate');?></h3></a>
+					</div>
+					
+					<div id="collapse2" class="accordion-body collapse">
+						<p class="alert"><span class="icon icon-info-sign"></span> <?php echo _('Sendy sends bulks of emails in parallel per second according to your Amazon SES send rate. Depending on the capability of your server, your server may have trouble processing huge bulks of emails efficiently if your SES send rate is very high. Lowering your send rate may yield better sending speed and stability.');?></p> 
+				        <label class="control-label" for="aws_key"><?php echo _('Adjust sending rate'); echo ' '; echo '('; echo _('Max'); echo ': '; echo $send_rate; echo ')';?></label>
+				    	<div class="control-group">
+				            <div class="input-prepend input-append">
+				              <input type="text" class="input-xlarge" id="send_rate" name="send_rate" value="<?php echo get_user_data('send_rate')=='' || get_user_data('send_rate')==0 ? $send_rate : get_user_data('send_rate');?>" style="width: 80px;"><span class="add-on"><?php echo _('emails per second');?></span>
+				              <input type="hidden" id="ses_send_rate" name="ses_send_rate" value="<?php echo $send_rate;?>">
+				            </div>
+				        </div>
+				        <br/>
+					</div>
+		        </div>
+		        
+		        <?php endif;?>
+		        
+		        <div class="accordion-group">
+					<div class="accordion-heading">
+				        <a href="#collapse3" class="accordion-toggle" data-parent="#accordion" data-toggle="collapse"><h3><span class="icon icon-dollar"></span> <?php echo _('PayPal account');?></h3></a>
+					</div>
+					
+					<div id="collapse3" class="accordion-body collapse">
+				        <p class="alert"><span class="icon icon-info-sign"></span> <?php echo _('If you charge your client(s) a fee for sending newsletters, they\'ll pay to this PayPal account. Also, don\'t forget to turn <strong>Auto Return</strong> ON in your PayPal account under <strong>Profile > My sellings tools > Website preferences</strong> so that your client will be automatically re-directed to the sending script after payment. Just use your website\'s URL for the <strong>Return URL</strong> to be able to save.');?></p>
+				        <label class="control-label" for="paypal"><?php echo _('PayPal email address');?></label>
+				    	<div class="control-group">
+					    	<div class="controls">
+				              <input type="text" class="input-xlarge" id="paypal" name="paypal" placeholder="<?php echo _('PayPal account email address');?>" value="<?php echo get_user_data('paypal');?>">
+				            </div>
+				        </div>
+				        <br/>
+					</div>
+		        </div>
+		        
+		        <div class="accordion-group">
+			        <div class="accordion-heading">
+				        <a href="#collapse4" class="accordion-toggle" data-parent="#accordion" data-toggle="collapse"><h3><span class="icon icon-reorder"></span> <?php echo _('Miscellaneous');?></h3></a>
+			        </div>
+			        
+			        <div id="collapse4" class="accordion-body collapse">
+				        <br/>
+				        
+				        <label class="control-label" for="brands_rows"><?php echo _('No. of brands to show per page');?></label>
+					    	<div class="control-group">
+					    	<div class="input-prepend input-append">
+				              <input type="text" class="input-xlarge" id="brands_rows" name="brands_rows" placeholder="10" value="<?php echo get_app_info('brands_rows');?>" style="width: 80px;"><span class="add-on"><?php echo _('brands per page');?></span>
+				            </div>
+				        </div>
+				        
+				        <input type="hidden" name="id" value="<?php echo $_GET['i'];?>">
+				        
+				        <br/>
+			        </div>
+		        </div>
+		    
+			</div>
 	        
 	        <?php else:?>
-	        <h3><?php echo _('Sending preferences');?></h3><br/>
 	        
-	        <label class="control-label" for="from_name"><?php echo _('From name');?></label>
-	    	<div class="control-group">
-		    	<div class="controls">
-	              <input type="text" class="input-xlarge" id="from_name" name="from_name" placeholder="<?php echo _('From name');?>" value="<?php echo get_saved_data('from_name');?>">
-	            </div>
-	        </div>
+	        <hr/>
 	        
-	        <label class="control-label" for="from_email"><?php echo _('From email');?></label>
-	    	<div class="control-group">
-		    	<div class="controls">
-	              <input type="text" class="input-xlarge" disabled="disabled" id="from_email" name="from_email" placeholder="<?php echo _('From email');?>" value="<?php echo get_saved_data('from_email');?>">
-	            </div>
-	        </div>
-	        
-	        <label class="control-label" for="reply_to"><?php echo _('Reply to email');?></label>
-	    	<div class="control-group">
-		    	<div class="controls">
-	              <input type="text" class="input-xlarge" id="reply_to" name="reply_to" placeholder="<?php echo _('Reply to email');?>" value="<?php echo get_saved_data('reply_to');?>">
-	            </div>
-	        </div>
+	        <div class="accordion" id="accordion">
+		        <?php if(!get_app_info('campaigns_only')):?>
+		        
+		        <div class="accordion-group">
+			        <div class="accordion-heading">
+				        <a href="#collapse0" class="accordion-toggle" data-parent="#accordion" data-toggle="collapse"><h3><span class="icon icon-envelope-alt"></span> <?php echo _('Sending preferences');?></h3></a>
+			        </div>
+			        
+			        <div id="collapse0" class="accordion-body collapse">
+				        <br/>
+				        <label class="control-label" for="from_name"><?php echo _('From name');?></label>
+				    	<div class="control-group">
+					    	<div class="controls">
+				              <input type="text" class="input-xlarge" id="from_name" name="from_name" placeholder="<?php echo _('From name');?>" value="<?php echo get_saved_data('from_name');?>">
+				            </div>
+				        </div>
+				        
+				        <label class="control-label" for="from_email"><?php echo _('From email');?></label>
+				    	<div class="control-group">
+					    	<div class="controls">
+				              <input type="text" class="input-xlarge" <?php echo verify_identity($main_email)=='verified' || (get_app_info('s3_key')=='' && get_app_info('s3_secret')=='') ? '' : 'disabled="disabled"'; ?> id="from_email" name="from_email" placeholder="<?php echo _('From email');?>" value="<?php echo get_saved_data('from_email');?>">
+				            </div>
+				        </div>
+				        
+				        <label class="control-label" for="reply_to"><?php echo _('Reply to email');?></label>
+				    	<div class="control-group">
+					    	<div class="controls">
+				              <input type="text" class="input-xlarge" id="reply_to" name="reply_to" placeholder="<?php echo _('Reply to email');?>" value="<?php echo get_saved_data('reply_to');?>">
+				            </div>
+				        </div>
+				        
+				        <br/><br/>
+			        </div>
+		        </div>
+		        
+		        <?php endif;?>
+		        
+		        <?php if(!get_app_info('lists_only')):?>
+		        
+		        <div class="accordion-group">
+			        <div class="accordion-heading">		        
+				        <a href="#collapse1" class="accordion-toggle" data-parent="#accordion" data-toggle="collapse"><h3><span class="icon icon-certificate"></span> <?php echo _('GDPR features');?></h3></a>
+			        </div>
+		        
+					<div id="collapse1" class="accordion-body collapse">
+				        <p class="alert"><?php echo _('The <a href="https://www.eugdpr.org/the-regulation.html" target="_blank" style="text-decoration: underline;">General Data Protection Regulation (GDPR)</a> is a regulation in EU law on data protection and privacy for all individuals within the European Union. The GDPR regulation affects anyone in the world who collect and process the personal data of EU users. If you collect and process data of EU users, Sendy\'s GDPR features will be useful to you.')?></p>
+				        
+				        <label class="control-label"><?php echo _('GDPR options');?></label>
+				    	<div class="control-group">
+					    	<div class="dashed-box">
+						    	<div class="checkbox">
+								  <label><input type="checkbox" name="gdpr_options" <?php echo get_saved_data('gdpr_options')==1 ? 'checked' : '';?>><?php echo _('Show me GDPR options where applicable');?> <br/><br/><i class="thirtytwo"><?php echo _('By enabling this option, GDPR features will show up in the app where appropriate. For example, subscribe form dialogues will present you with an option to enable \'GDPR fields\' amongst many others.');?></i></label>
+								</div>
+					    	</div>
+				        </div>
+				        
+				        <br/>
+				        
+				        <label class="control-label"><?php echo _('GDPR safe switch');?></label>
+				    	<div class="control-group">
+					    	<div class="dashed-box">
+						    	<div class="checkbox">
+								  <label><input type="checkbox" name="gdpr_only" <?php echo get_saved_data('gdpr_only')==1 ? 'checked' : '';?>><?php echo _('Only send Campaigns to subscribers with <span class="label label-warning">GDPR</span> tag');?> <br/><br/><i class="thirtytwo"><?php echo _('Subscribers who signup through the provided \'Ready-to-use subscribe form\' or the embeddable \'Subscribe form HTML code\' with \'gdpr\' parameter set to \'true\' will be tagged with \'GDPR\'. By enabling this option, your future Campaigns will only send to subscribers tagged with \'GDPR\'.');?></i></label>
+								</div>
+					    	</div>
+					    	<br/>
+					    	<div class="dashed-box">
+						    	<div class="checkbox">
+								  <label><input type="checkbox" name="gdpr_only_ar" <?php echo get_saved_data('gdpr_only_ar')==1 ? 'checked' : '';?>><?php echo _('Only send Autoresponders to subscribers with <span class="label label-warning">GDPR</span> tag');?> <br/><br/><i class="thirtytwo"><?php echo _('Subscribers who signup through the provided \'Ready-to-use subscribe form\' or the embeddable \'Subscribe form HTML code\' with \'gdpr\' parameter set to \'true\' will be tagged with \'GDPR\'. By enabling this option, your future Autoresponders will only send to subscribers tagged with \'GDPR\'.');?></i></label>
+								</div>
+					    	</div>
+				        </div>
+				        
+				        <br/><br/>
+					</div>
+		        </div>
+		        
+		        <div class="accordion-group">
+			        <div class="accordion-heading">	
+				        <a href="#collapse2" class="accordion-toggle" data-parent="#accordion" data-toggle="collapse"><h3><span class="icon icon-ok"></span> <?php echo _('Google reCAPTCHA v2');?></h3></a>
+			        </div>
+			        
+					<div id="collapse2" class="accordion-body collapse">
+				        <div class="alert">
+					        <span class="icon icon-info-sign"></span> <?php echo _('You can use Google\'s reCAPTCHA v2 to protect your subscription forms from spam bots. To enable, register your site on <a href="https://www.google.com/recaptcha/admin/create" target="_blank" style="text-decoration: underline;">Google\'s reCAPTCHA website</a> and select \'reCAPTCHA v2 > "I\'m not a robot" tickbox\' to get your \'Site key\' and \'Secret key\', then paste them below. reCAPTCHA will be disabled if the following fields are empty.');?>
+				        </div>
+				        
+				        <label class="control-label" for="recaptcha_sitekey"><?php echo _('Site key');?></label>
+				    	<div class="control-group">
+					    	<div class="controls">
+				              <input type="text" class="input-xlarge" id="recaptcha_sitekey" name="recaptcha_sitekey" placeholder="Site key" value="<?php echo get_saved_data('recaptcha_sitekey');?>">
+				            </div>
+				        </div>
+				        
+				        <label class="control-label" for="recaptcha_secretkey"><?php echo _('Secret key');?></label>
+				    	<div class="control-group">
+					    	<div class="controls">
+				              <input type="password" class="input-xlarge" id="recaptcha_secretkey" name="recaptcha_secretkey" placeholder="Secret key" value="<?php echo get_saved_data('recaptcha_secretkey');?>">
+				            </div>
+				        </div>
+				        
+				        <br/><br/>
+					</div>
+				</div>
+		        
+		        <?php endif;?>
+		        
+		        
+		        <?php if(!get_app_info('campaigns_only') || !get_app_info('reports_only') || !get_app_info('lists_only')):?>
+		        
+	        	<div class="accordion-group">
+			        <div class="accordion-heading">		        
+				        <a href="#collapse3" class="accordion-toggle" data-parent="#accordion" data-toggle="collapse"><h3><span class="icon icon-reorder"></span> <?php echo _('Miscellaneous');?></h3></a>
+			        </div>
+			        
+			        <div id="collapse3" class="accordion-body collapse">
+				        <br/>
+				        <?php if(!get_app_info('campaigns_only')):?>
+				        
+				        <label class="control-label" for="query_string" style="width:70%;"><?php echo _('Default URL query string');?></label>
+				    	<div class="control-group">
+					    	<div class="controls">
+				              <input type="text" class="input-xlarge" id="query_string" name="query_string" placeholder="utm_source=newsletter&utm_medium=<?php echo get_app_info('company')?>&utm_campaign=email_marketing" value="<?php echo get_saved_data('query_string');?>" style="width: 70%;">
+				              <br/>
+				              <span><i class="thirtytwo"><?php echo _('(Default query string to append to all links in your campaigns and autoresponders. A good use case is Google Analytics tracking. Don\'t include \'?\' in your query string.)')?></i></span>
+				            </div>
+				        </div>
+				        
+				        <br/>
+				        
+				        <label class="control-label" for="test_email_prefix"><?php echo _('Prefix for subject line of test emails');?></label>
+				    	<div class="control-group">
+					    	<div class="controls">
+				              <input type="text" class="input-xlarge" id="test_email_prefix" name="test_email_prefix" placeholder="[Test]" value="<?php echo get_saved_data('test_email_prefix');?>">
+				              <br/>
+				              <span><i class="thirtytwo"><?php echo _('(Optionally add a prefix to the subject line of test emails)')?></i></span>
+				            </div>
+				        </div>
+				        
+				        <br/>
+				        
+				        <?php endif;?>
+				        
+				        <?php if(!get_app_info('campaigns_only') || !get_app_info('reports_only') || !get_app_info('lists_only')):?>
+				        
+				        <label class="control-label" for="campaign_report_rows"><?php echo _('No. of rows to show in campaigns, reports and lists');?></label>
+				    	<div class="control-group">
+					    	<div class="input-prepend input-append">
+				              <input type="text" class="input-xlarge" id="campaign_report_rows" name="campaign_report_rows" placeholder="10" value="<?php echo get_saved_data('campaign_report_rows');?>" style="width: 80px;"><span class="add-on"><?php echo _('rows per page');?></span>
+				            </div>
+				        </div>
+				        
+				        <br/>
+				        
+				        <?php endif;?>
+			        </div>
+	        	</div>
+		        
+		        <?php endif;?>
+		    </div>
+		        
+	        <input type="hidden" name="id" value="<?php echo $_GET['i'];?>">
 	        
 	        <?php endif;?>
+        
+			<br/>
 	        
 	        <input type="hidden" name="uid" value="<?php echo get_app_info('userID');?>">
 	        
@@ -402,7 +562,7 @@
     <!-- Check if sub user -->
 	<?php if(!get_app_info('is_sub_user')):?>	 
     <div class="span5">
-	    <h2><?php echo _('Your license key');?></h2><br/>
+	    <h3><?php echo _('Your license key');?></h3><br/>
 	    <div>
 		    <div class="well"><strong id="license-key"><?php echo get_user_data('license');?></strong></div>
 		    <p><?php echo _('You\'ll need this license key to');?> <a href="https://sendy.co/get-updated?l=<?php echo get_app_info('license');?>" target="_blank" style="text-decoration:underline"><?php echo _('download the latest version of Sendy on our website');?></a>.</p>
@@ -410,12 +570,12 @@
 	    
 	    <br/><br/>
 	    
-	    <h2><?php echo _('Your API key');?></h2><br/>
+	    <h3><?php echo _('Your API key');?></h3><br/>
 	    <div>
 		    <div class="well">
 			    <strong id="api-key"><?php echo get_user_data('api_key');?></strong>
 			    <br/><br/>
-			    <button id="regenerate-btn"><span class="icon-refresh"></span> <?php echo _('Regenerate API key?');?></button>
+			    <button id="regenerate-btn" class="btn"><span class="icon-refresh"></span> <?php echo _('Regenerate API key?');?></button>
 		    </div>
 	    </div>
 	    <script type="text/javascript">
@@ -445,13 +605,13 @@
 	    
 	    <br/><br/>
 	    
-	    <h2><?php echo _('Zapier integration');?></h2><br/>
-	    <p><?php echo _('<a href="https://zapier.com" target="_blank" style="text-decoration:underline">Zapier</a>\'s integration with <a href="https://zapier.com/zapbook/sendy/" target="_blank" style="text-decoration:underline">Sendy</a> opens up a whole world of automation! You can integrate Sendy with over 500 apps available in <a href="https://zapier.com/zapbook/" target="_blank" style="text-decoration:underline">Zapier\'s app directory</a>. The following are a few ready to use "Zaps" to get you started. Alternatively you can visit Zapier and create your own "Zaps" to integrate Sendy with any other apps. You\'d be prompted to <a href="https://zapier.com/app/signup" target="_blank" style="text-decoration:underline">signup for a free Zapier account</a> if you don\'t have one.');?></p>
-	    <br/>
+	    <h3><?php echo _('Zapier integration');?></h3><br/>
+	    <p class="alert"><span class="icon icon-info-sign"></span> <?php echo _('<a href="https://zapier.com" target="_blank" style="text-decoration:underline">Zapier</a>\'s integration with <a href="https://zapier.com/zapbook/sendy/" target="_blank" style="text-decoration:underline">Sendy</a> opens up a whole world of automation! You can integrate Sendy with over 1,000 apps available in <a href="https://zapier.com/zapbook/" target="_blank" style="text-decoration:underline">Zapier\'s app directory</a>. The following are a few ready to use "Zaps" to get you started. Alternatively you can visit Zapier and create your own "Zaps" to integrate Sendy with any other apps. You\'d be prompted to <a href="https://zapier.com/app/signup" target="_blank" style="text-decoration:underline">signup for a free Zapier account</a> if you don\'t have one.');?></p>
 	    <div>
 		    <script src="https://zapier.com/zapbook/embed/widget.js?guided_zaps=<?php echo get_app_info('zaps');?>&container=false">
 	    </div>
     </div>
+    
     <?php endif;?>
 </div>
 <!-- Validation -->
@@ -472,8 +632,13 @@
 				},
 				send_rate: {
 					required: true
-					,range: [1, <?php echo $ses_send_rate;?>]
+					,range: [1, <?php echo $send_rate;?>]
 					,number: true
+				},
+				campaign_report_rows: {
+					required: true,
+					digits: true,
+					min: 1	
 				}
 			},
 			messages: {
@@ -482,6 +647,14 @@
 				email: "<?php echo addslashes(_('A valid email is required'));?>"
 			}
 		});
+		
+		<?php if(get_app_info('is_sub_user')):?>
+		//accordion1
+		$("#collapse0").on('shown', function(){$('html, body').animate({scrollTop:$(this).parent().parent().position().top-60}, 'slow', 'easeOutExpo'); $("#from_name").focus();});
+		$("#collapse1").on('shown', function(){$('html, body').animate({scrollTop:$(this).parent().parent().position().top-10}, 'slow', 'easeOutExpo');});
+		$("#collapse2").on('shown', function(){$('html, body').animate({scrollTop:$(this).parent().parent().position().top+50}, 'slow', 'easeOutExpo'); $("#recaptcha_sitekey").focus();});
+		$("#collapse3").on('shown', function(){$('html, body').animate({scrollTop:$(this).parent().parent().position().top+100}, 'slow', 'easeOutExpo'); $("#query_string").focus();});
+		<?php endif;?>
 	});
 </script>
 <?php include('includes/footer.php');?>

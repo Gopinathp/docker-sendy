@@ -77,7 +77,7 @@
 	
 	//-------------------------- QUERY --------------------------//
 	
-	$q = 'DELETE FROM subscribers WHERE email = "'.$email.'" AND list = '.$list_id;
+	$q = 'DELETE FROM subscribers WHERE email = "'.$email.'" AND list = "'.$list_id.'"';
 	$r = mysqli_query($mysqli, $q);
 	if ($r)
 	    echo true;

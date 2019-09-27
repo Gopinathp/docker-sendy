@@ -99,7 +99,7 @@
 	//------------------------------------------------------//
 	{
 		global $mysqli;
-		$q = 'SELECT '.$val.' FROM apps WHERE id = '.mysqli_real_escape_string($mysqli, $_GET['i']);
+		$q = 'SELECT '.$val.' FROM apps WHERE id = '.mysqli_real_escape_string($mysqli, (int)$_GET['i']);
 		$r = mysqli_query($mysqli, $q);
 		if ($r && mysqli_num_rows($r) > 0)
 		{
@@ -138,7 +138,7 @@
 	//------------------------------------------------------//
 	{
 		global $mysqli;
-		$q = 'SELECT delivery_fee, cost_per_recipient FROM apps WHERE id = '.mysqli_real_escape_string($mysqli, $_GET['i']);
+		$q = 'SELECT delivery_fee, cost_per_recipient FROM apps WHERE id = '.mysqli_real_escape_string($mysqli, (int)$_GET['i']);
 		$r = mysqli_query($mysqli, $q);
 		if ($r && mysqli_num_rows($r) > 0)
 		{
@@ -167,6 +167,23 @@
 	{
 		global $mysqli;
 		$q = 'SELECT COUNT(*) FROM template WHERE app = '.get_app_info('app').' AND userID = '.get_app_info('main_userID');
+		$r = mysqli_query($mysqli, $q);
+		if ($r && mysqli_num_rows($r) > 0)
+		{
+		    while($row = mysqli_fetch_array($r))
+		    {
+				$rows = $row['COUNT(*)'];
+		    }  
+		    return $rows == 0 ? false : true;
+		}
+	}
+	
+	//------------------------------------------------------//
+	function have_segments()
+	//------------------------------------------------------//
+	{
+		global $mysqli;
+		$q = 'SELECT COUNT(*) FROM seg WHERE app = '.get_app_info('app');
 		$r = mysqli_query($mysqli, $q);
 		if ($r && mysqli_num_rows($r) > 0)
 		{

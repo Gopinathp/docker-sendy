@@ -1,7 +1,7 @@
 <?php include('../functions.php');?>
 <?php include('../login/auth.php');?>
 <?php 
-	$list_id = mysqli_real_escape_string($mysqli, $_POST['list_id']);
+	$list_id = isset($_POST['list_id']) && is_numeric($_POST['list_id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['list_id']) : exit;
 	
 	//delete autoresopnder emails
 	$q = 'SELECT id FROM ares WHERE list = '.$list_id;
@@ -18,6 +18,23 @@
 	}	
 	//delete autoresponder
 	$q = 'DELETE FROM ares WHERE list = '.$list_id;
+	mysqli_query($mysqli, $q);
+	
+	//delete segments
+	$q = 'SELECT id FROM seg WHERE list = '.$list_id;
+	$r = mysqli_query($mysqli, $q);
+	if ($r && mysqli_num_rows($r) > 0)
+	{
+	    while($row = mysqli_fetch_array($r))
+	    {
+			$seg_id = $row['id'];
+			
+			$q2 = 'DELETE FROM seg_cons WHERE seg_id = '.$seg_id;
+			mysqli_query($mysqli, $q2);
+	    }  
+	}	
+	//delete segments
+	$q = 'DELETE FROM seg WHERE list = '.$list_id;
 	mysqli_query($mysqli, $q);
 	
 	//delete list and its subscribers

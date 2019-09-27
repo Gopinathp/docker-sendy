@@ -2,8 +2,8 @@
 	include('../functions.php');
 	include('../login/auth.php');
 	
-	$toggle = mysqli_real_escape_string($mysqli, $_POST['toggle']);
-	$c = mysqli_real_escape_string($mysqli, $_POST['ae']);
+	$toggle = isset($_POST['toggle']) ? mysqli_real_escape_string($mysqli, $_POST['toggle']) : exit;
+	$c = isset($_POST['ae']) && is_numeric($_POST['ae']) ? mysqli_real_escape_string($mysqli, (int)$_POST['ae']) : exit;
 	
 	if($toggle==_('Save and switch to HTML editor'))
 		$toggle = 0;

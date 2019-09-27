@@ -3,9 +3,6 @@
 <?php include('includes/helpers/integrations/zapier/triggers/functions.php');?>
 <?php 
 	include('includes/config.php');
-    if(!$environment && !testEmail) {
-        print 'env variable SENDY_ENV is not defined';
-    }
 	//--------------------------------------------------------------//
 	function dbConnect() { //Connect to database
 	//--------------------------------------------------------------//
@@ -16,8 +13,6 @@
 	    global $dbPass;
 	    global $dbName;
 	    global $dbPort;
-	    global $environment;
-	    global $testEmail;
 	    
 	    // Attempt to connect to database server
 	    if(isset($dbPort)) $mysqli = new mysqli($dbHost, $dbUser, $dbPass, $dbName, $dbPort);
@@ -69,7 +64,7 @@
 	$offset = isset($_GET['offset']) ? $_GET['offset'] : '';
 	
 	//Check campaigns database
-	$q = 'SELECT timezone, sent, id, app, userID, to_send, to_send_lists, recipients, timeout_check, send_date, lists, from_name, from_email, reply_to, title, label, plain_text, html_text, query_string, opens_tracking, links_tracking, custom_fields FROM campaigns WHERE (send_date !="" AND lists !="" AND timezone != "") OR (to_send > recipients) ORDER BY sent DESC';
+	$q = 'SELECT timezone, sent, id, app, userID, to_send, to_send_lists, recipients, timeout_check, send_date, lists, lists_excl, segs, segs_excl, from_name, from_email, reply_to, title, label, plain_text, html_text, query_string, opens_tracking, links_tracking FROM campaigns WHERE (send_date !="" AND lists !="" AND timezone != "") OR (to_send > recipients) ORDER BY sent DESC';
 	$r = mysqli_query($mysqli, $q);
 	if ($r && mysqli_num_rows($r) > 0)
 	{
@@ -83,6 +78,9 @@
 			$userID = $row['userID'];
 			$send_date = $row['send_date'];
 			$email_list = $row['lists'];
+			$email_list_excl = $row['lists_excl'];
+			$segs = $row['segs'];
+			$segs_excl = $row['segs_excl'];
 			$time = time();
 			$current_recipient_count = $row['recipients'];
 			$timeout_check = $row['timeout_check'];
@@ -99,15 +97,6 @@
 			$to_send_lists = $row['to_send_lists'];
 			$opens_tracking = $row['opens_tracking'];
 			$links_tracking = $row['links_tracking'];
-			$extra_custom_fields_and_values = $row['custom_fields'];
-			$extra_custom_fields_and_values_array = explode('%s%',$extra_custom_fields_and_values );
-			$extra_custom_fields = array();
-			$extra_custom_values = array();
-			foreach($extra_custom_fields_and_values_array as $extra_custom_field_and_value) {
-			    list($field,$value) = explode('|', $extra_custom_field_and_value);
-			    $extra_custom_fields[] = $field;
-			    $extra_custom_values[] = $value;
-			}
 			
 			//Set language
 			$q_l = 'SELECT login.language FROM campaigns, login WHERE campaigns.id = '.$campaign_id.' AND login.app = campaigns.app';
@@ -133,8 +122,20 @@
 			//Set default timezone
 			date_default_timezone_set($timezone!='0' && $timezone!='' ? $timezone : $user_timezone);
 			
+			//convert date tags
+			$today = time();
+			$day_word = array(_('Sunday'), _('Monday'), _('Tuesday'), _('Wednesday'), _('Thursday'), _('Friday'), _('Saturday'));
+			$month_word = array('', _('January'), _('February'), _('March'), _('April'), _('May'), _('June'), _('July'), _('August'), _('September'), _('October'), _('November'), _('December'));
+			$currentdaynumber = strftime('%d', $today);
+			$currentday = $day_word[strftime('%w', $today)];
+			$currentmonthnumber = strftime('%m', $today);
+			$currentmonth = $currentmonthnumber==10 ? $month_word[$currentmonthnumber] : $month_word[str_replace('0', '', $currentmonthnumber)];
+			$currentyear = strftime('%Y', $today);
+			$unconverted_date = array('[currentdaynumber]', '[currentday]', '[currentmonthnumber]', '[currentmonth]', '[currentyear]');
+			$converted_date = array($currentdaynumber, $currentday, $currentmonthnumber, $currentmonth, $currentyear);
+			
 			//get smtp settings
-			$q3 = 'SELECT smtp_host, smtp_port, smtp_ssl, smtp_username, smtp_password FROM apps WHERE id = '.$app;
+			$q3 = 'SELECT smtp_host, smtp_port, smtp_ssl, smtp_username, smtp_password, notify_campaign_sent, gdpr_only, custom_domain, custom_domain_protocol, custom_domain_enabled FROM apps WHERE id = '.$app;
 			$r3 = mysqli_query($mysqli, $q3);
 			if ($r3 && mysqli_num_rows($r3) > 0)
 			{
@@ -145,8 +146,38 @@
 					$smtp_ssl = $row['smtp_ssl'];
 					$smtp_username = $row['smtp_username'];
 					$smtp_password = $row['smtp_password'];
+					$notify_campaign_sent = $row['notify_campaign_sent'];
+					$gdpr_line = $row['gdpr_only'] ? 'AND gdpr = 1 ' : '';
+					$custom_domain = $row['custom_domain'];
+					$custom_domain_protocol = $row['custom_domain_protocol'];
+					$custom_domain_enabled = $row['custom_domain_enabled'];
+					if($custom_domain!='' && $custom_domain_enabled)
+					{
+						$parse = parse_url(APP_PATH);
+						$domain = $parse['host'];
+						$protocol = $parse['scheme'];
+						$app_path = str_replace($domain, $custom_domain, APP_PATH);
+						$app_path = str_replace($protocol, $custom_domain_protocol, $app_path);
+					}
+					else $app_path = APP_PATH;
 			    }  
 			}
+			
+			if($offset=='') //If sending for the first time
+				$main_query = $email_list == 0 ? '' : 'subscribers.list in ('.$email_list.') '; //Include main list query
+			else //If resuming
+				$main_query = $to_send_lists == '' ? '' : 'subscribers.list in ('.$to_send_lists.') '; //Include main list query
+			
+			//Include segmentation query
+			$seg_query = $main_query != '' && $segs != 0 ? 'OR ' : '';
+			$seg_query .= $segs == 0 ? '' : '(subscribers_seg.seg_id IN ('.$segs.')) ';
+			
+			//Exclude list query
+			$exclude_query = $email_list_excl == 0 ? '' : 'subscribers.email NOT IN (SELECT email FROM subscribers WHERE list IN ('.$email_list_excl.')) ';
+			
+			//Exclude segmentation query
+			$exclude_seg_query = $exclude_query != '' && $segs_excl != 0 ? 'AND ' : ''; 
+			$exclude_seg_query .= $segs_excl == 0 ? '' : 'subscribers.email NOT IN (SELECT subscribers.email FROM subscribers LEFT JOIN subscribers_seg ON (subscribers.id = subscribers_seg.subscriber_id) WHERE subscribers_seg.seg_id IN ('.$segs_excl.'))';
 			
 			//check if we should send email now
 			if((($time>=$send_date && $time<$send_date+300) && $sent=='') || (($send_date<$time) && $sent=='') || ($send_date=='0' && $timezone=='0'))
@@ -157,7 +188,7 @@
 				else
 					$q = 'UPDATE campaigns SET sent = "'.$time.'", send_date=NULL, lists=NULL, timezone=NULL WHERE id = '.$campaign_id;
 				$r = mysqli_query($mysqli, $q);
-				if ($r){}	
+				if ($r){}
 				
 				//if sending for the first time
 				if($offset=='')
@@ -166,10 +197,12 @@
 					if($links_tracking)
 					{
 						//Insert web version link
-						if(strpos($html, '</webversion>')==true)
-						{
-							mysqli_query($mysqli, 'INSERT INTO links (campaign_id, link) VALUES ('.$campaign_id.', "'.APP_PATH.'/w/'.short($campaign_id).'")');
-						}
+						if(strpos($html, '</webversion>')==true || strpos($html, '[webversion]')==true)
+							mysqli_query($mysqli, 'INSERT INTO links (campaign_id, link) VALUES ('.$campaign_id.', "'.$app_path.'/w/'.short($campaign_id).'")');
+						
+						//Insert reconsent link
+						if(strpos($html, '[reconsent]')==true)
+							mysqli_query($mysqli, 'INSERT INTO links (campaign_id, link) VALUES ('.$campaign_id.', "'.$app_path.'/r?c='.short($campaign_id).'")');
 						
 						//Insert into links
 						$links = array();
@@ -179,8 +212,9 @@
 						foreach($matches as $var)
 						{    
 							$var = $query_string!='' ? ((strpos($var,'?') !== false) ? $var.'&'.$query_string : $var.'?'.$query_string) : $var;
-							if(substr($var, 0, 1)!="#" && substr($var, 0, 6)!="mailto" && substr($var, 0, 3)!="tel" && substr($var, 0, 3)!="sms" && substr($var, 0, 13)!="[unsubscribe]" && substr($var, 0, 12)!="[webversion]" && !strpos($var, 'fonts.googleapis.com'))
+							if(substr($var, 0, 1)!="#" && substr($var, 0, 6)!="mailto" && substr($var, 0, 3)!="ftp" && substr($var, 0, 3)!="tel" && substr($var, 0, 3)!="sms" && substr($var, 0, 13)!="[unsubscribe]" && substr($var, 0, 12)!="[webversion]" && substr($var, 0, 11)!="[reconsent]" && !strpos($var, 'fonts.googleapis.com') && !strpos($var, 'use.typekit.net') && !strpos($var, 'use.fontawesome.com'))
 							{
+								$var = str_replace($unconverted_date, $converted_date, $var);
 						    	array_push($links, $var);
 						    }
 						}
@@ -194,7 +228,14 @@
 					}
 					
 					//Get and update number of recipients to send to
-					$q = 'SELECT id FROM subscribers WHERE list in ('.$email_list.') AND unsubscribed = 0 AND bounced = 0 AND complaint = 0 AND confirmed = 1 GROUP BY email';
+					$q  = 'SELECT 1 FROM subscribers';
+					$q .= $segs==0 && $segs_excl==0 ? ' ' : ' LEFT JOIN subscribers_seg ON (subscribers.id = subscribers_seg.subscriber_id) ';
+					$q .= 'WHERE ('.$main_query.$seg_query.') ';
+					$q .= $exclude_query != '' || $exclude_seg_query != '' ? 'AND ('.$exclude_query.$exclude_seg_query.') ' : '';
+					$q .= 'AND subscribers.unsubscribed = 0 AND subscribers.bounced = 0 AND subscribers.complaint = 0 AND subscribers.confirmed = 1 '.$gdpr_line.'
+						   GROUP BY subscribers.email 
+						   ORDER BY subscribers.id ASC 
+						   LIMIT 18446744073709551615'.$the_offset;
 					$r = mysqli_query($mysqli, $q);
 					if ($r)
 					{
@@ -223,7 +264,14 @@
 				}
 				
 				//Replace links in newsletter and put tracking image
-				$q = 'SELECT id, name, email, list, custom_fields FROM subscribers WHERE list in ('.$email_list.') AND unsubscribed = 0 AND bounced = 0 AND complaint = 0 AND confirmed = 1 GROUP BY email  ORDER BY id ASC LIMIT 18446744073709551615'.$the_offset;
+				$q  = 'SELECT subscribers.id, subscribers.name, subscribers.email, subscribers.list, subscribers.custom_fields FROM subscribers';
+				$q .= $segs==0 && $segs_excl==0 ? ' ' : ' LEFT JOIN subscribers_seg ON (subscribers.id = subscribers_seg.subscriber_id) ';
+				$q .= 'WHERE ('.$main_query.$seg_query.') ';
+				$q .= $exclude_query != '' || $exclude_seg_query != '' ? 'AND ('.$exclude_query.$exclude_seg_query.') ' : '';
+				$q .= 'AND subscribers.unsubscribed = 0 AND subscribers.bounced = 0 AND subscribers.complaint = 0 AND subscribers.confirmed = 1 '.$gdpr_line.'
+					   GROUP BY subscribers.email 
+					   ORDER BY subscribers.id ASC 
+					   LIMIT 18446744073709551615'.$the_offset;
 				$r = mysqli_query($mysqli, $q);
 				if ($r && mysqli_num_rows($r) > 0)
 				{
@@ -242,9 +290,37 @@
 						$subscriber_list = $row['list'];
 						$custom_values = $row['custom_fields'];
 						
-						$html_treated = $html;
-						$plain_treated = $plain_text;
-						$title_treated = $title;
+						//convert date tags
+						$html_treated = str_replace($unconverted_date, $converted_date, $html);
+						$plain_treated = str_replace($unconverted_date, $converted_date, $plain_text);
+						$title_treated = str_replace($unconverted_date, $converted_date, $title);
+						
+						//replace new links on HTML code
+						$q2 = 'SELECT id, link FROM links WHERE campaign_id = '.$campaign_id;
+						$r2 = mysqli_query($mysqli, $q2);
+						if ($r2 && mysqli_num_rows($r2) > 0)
+						{			
+						    while($row2 = mysqli_fetch_array($r2))
+						    {
+						    	$linkID = $row2['id'];
+						    	if($query_string!='')
+						    	{
+							    	$link = (strpos($row2['link'],'?'.$query_string) !== false) ? str_replace('?'.$query_string, '', $row2['link']) : str_replace('&'.$query_string, '', $row2['link']);
+						    	}
+						    	else $link = $row2['link'];
+								
+								//If link tracking is enabled, replace links with trackable links
+								if($links_tracking)
+								{									
+									//replace new links on HTML code
+							    	$html_treated = str_replace('href="'.$link.'"', 'href="'.$app_path.'/l/'.short($subscriber_id).'/'.short($linkID).'/'.short($campaign_id).'"', $html_treated);
+							    	$html_treated = str_replace('href=\''.$link.'\'', 'href="'.$app_path.'/l/'.short($subscriber_id).'/'.short($linkID).'/'.short($campaign_id).'"', $html_treated);
+							    	
+							    	//replace new links on Plain Text code
+							    	$plain_treated = str_replace($link, $app_path.'/l/'.short($subscriber_id).'/'.short($linkID).'/'.short($campaign_id), $plain_treated);
+							    }
+						    }  
+						}
 						
 						//tags for subject
 						preg_match_all('/\[([a-zA-Z0-9!#%^&*()+=$@._\-\:|\/?<>~`"\'\s]+),\s*fallback=/i', $title_treated, $matches_var, PREG_PATTERN_ORDER);
@@ -283,8 +359,8 @@
 									if ($r5)
 									{
 									    while($row2 = mysqli_fetch_array($r5)) $custom_fields = $row2['custom_fields'];
-                                        $custom_fields_array = array_merge($extra_custom_fields, explode('%s%', $custom_fields));
-                                        $custom_values_array = array_merge($extra_custom_values, explode('%s%', $custom_values));
+									    $custom_fields_array = explode('%s%', $custom_fields);
+									    $custom_values_array = explode('%s%', $custom_values);
 									    $cf_count = count($custom_fields_array);
 									    $k = 0;
 									    
@@ -292,6 +368,7 @@
 									    {
 										    $cf_array = explode(':', $custom_fields_array[$j]);
 										    $key = str_replace(' ', '', $cf_array[0]);
+										    
 										    //if tag matches a custom field
 										    if($field==$key)
 										    {
@@ -302,7 +379,7 @@
 										    	else
 										    	{
 										    		//if custom field is of 'Date' type, format the date
-										    		if(isset($cf_array[1]) && $cf_array[1]=='Date')
+										    		if($cf_array[1]=='Date')
 											    		$title_treated = str_replace($tag, strftime("%a, %b %d, %Y", $custom_values_array[$j]), $title_treated);
 										    		//otherwise just replace tag with custom field value
 										    		else
@@ -329,13 +406,12 @@
 						$matches_var = $matches_var[1];
 						$matches_val = $matches_val[1];
 						$matches_all = $matches_all[1];
-
 						for($i=0;$i<count($matches_var);$i++)
 						{   
 							$field = $matches_var[$i];
 							$fallback = $matches_val[$i];
 							$tag = $matches_all[$i];
-
+							
 							//if tag is Name
 							if($field=='Name')
 							{
@@ -357,8 +433,8 @@
 									if ($r5)
 									{
 									    while($row2 = mysqli_fetch_array($r5)) $custom_fields = $row2['custom_fields'];
-                                        $custom_fields_array = array_merge($extra_custom_fields, explode('%s%', $custom_fields));
-                                        $custom_values_array = array_merge($extra_custom_values, explode('%s%', $custom_values));
+									    $custom_fields_array = explode('%s%', $custom_fields);
+									    $custom_values_array = explode('%s%', $custom_values);
 									    $cf_count = count($custom_fields_array);
 									    $k = 0;
 									    
@@ -366,6 +442,7 @@
 									    {
 										    $cf_array = explode(':', $custom_fields_array[$j]);
 										    $key = str_replace(' ', '', $cf_array[0]);
+										    
 										    //if tag matches a custom field
 										    if($field==$key)
 										    {
@@ -376,7 +453,7 @@
 										    	else
 										    	{
 										    		//if custom field is of 'Date' type, format the date
-										    		if(isset($cf_array[1]) && $cf_array[1]=='Date')
+										    		if($cf_array[1]=='Date')
 											    		$html_treated = str_replace($tag, strftime("%a, %b %d, %Y", $custom_values_array[$j]), $html_treated);
 										    		//otherwise just replace tag with custom field value
 										    		else
@@ -429,8 +506,8 @@
 									if ($r5)
 									{
 									    while($row2 = mysqli_fetch_array($r5)) $custom_fields = $row2['custom_fields'];
-                                        $custom_fields_array = array_merge($extra_custom_fields, explode('%s%', $custom_fields));
-                                        $custom_values_array = array_merge($extra_custom_values, explode('%s%', $custom_values));
+									    $custom_fields_array = explode('%s%', $custom_fields);
+									    $custom_values_array = explode('%s%', $custom_values);
 									    $cf_count = count($custom_fields_array);
 									    $k = 0;
 									    
@@ -449,7 +526,7 @@
 										    	else
 										    	{
 										    		//if custom field is of 'Date' type, format the date
-										    		if(isset($cf_array[1]) && $cf_array[1]=='Date')
+										    		if($cf_array[1]=='Date')
 														$plain_treated = str_replace($tag, strftime("%a, %b %d, %Y", $custom_values_array[$j]), $plain_treated);
 										    		//otherwise just replace tag with custom field value
 										    		else
@@ -465,70 +542,33 @@
 								}
 							}
 						}
-
-                        //replace new links on HTML code
-                        $q2 = 'SELECT id, link FROM links WHERE campaign_id = '.$campaign_id;
-                        $r2 = mysqli_query($mysqli, $q2);
-                        if ($r2 && mysqli_num_rows($r2) > 0)
-                        {
-                            while($row2 = mysqli_fetch_array($r2))
-                            {
-                                $linkID = $row2['id'];
-                                if($query_string!='')
-                                {
-                                    $link = (strpos($row2['link'],'?'.$query_string) !== false) ? str_replace('?'.$query_string, '', $row2['link']) : str_replace('&'.$query_string, '', $row2['link']);
-                                }
-                                else $link = $row2['link'];
-
-                                //If link tracking is enabled, replace links with trackable links
-                                if($links_tracking)
-                                {
-                                    //replace new links on HTML code
-                                    $html_treated = str_replace('href="'.$link.'"', 'href="'.APP_PATH.'/l/'.short($subscriber_id).'/'.short($linkID).'/'.short($campaign_id).'"', $html_treated);
-                                    $html_treated = str_replace('href=\''.$link.'\'', 'href="'.APP_PATH.'/l/'.short($subscriber_id).'/'.short($linkID).'/'.short($campaign_id).'"', $html_treated);
-
-                                    //replace new links on Plain Text code
-                                    $plain_treated = str_replace($link, APP_PATH.'/l/'.short($subscriber_id).'/'.short($linkID).'/'.short($campaign_id), $plain_treated);
-                                }
-                            }
-                        }
 						
 						//set web version links
-				    	$html_treated = str_replace('<webversion', '<a href="'.APP_PATH.'/w/'.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id).'" ', $html_treated);
+				    	$html_treated = str_replace('<webversion', '<a href="'.$app_path.'/w/'.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id).'" ', $html_treated);
 				    	$html_treated = str_replace('</webversion>', '</a>', $html_treated);
-				    	$html_treated = str_replace('[webversion]', APP_PATH.'/w/'.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id), $html_treated);
-				    	$plain_treated = str_replace('[webversion]', APP_PATH.'/w/'.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id), $plain_treated);
+				    	$html_treated = str_replace('[webversion]', $app_path.'/w/'.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id), $html_treated);
+				    	$plain_treated = str_replace('[webversion]', $app_path.'/w/'.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id), $plain_treated);
 				    	
 				    	//set unsubscribe links
-				    	$html_treated = str_replace('<unsubscribe', '<a href="'.APP_PATH.'/unsubscribe/'.short($email).'/'.short($subscriber_list).'/'.short($campaign_id).'" ', $html_treated);
+				    	$html_treated = str_replace('<unsubscribe', '<a href="'.$app_path.'/unsubscribe/'.short($email).'/'.short($subscriber_list).'/'.short($campaign_id).'" ', $html_treated);
 				    	$html_treated = str_replace('</unsubscribe>', '</a>', $html_treated);
-				    	$html_treated = str_replace('[unsubscribe]', APP_PATH.'/unsubscribe/'.short($email).'/'.short($subscriber_list).'/'.short($campaign_id), $html_treated);
-				    	$plain_treated = str_replace('[unsubscribe]', APP_PATH.'/unsubscribe/'.short($email).'/'.short($subscriber_list).'/'.short($campaign_id), $plain_treated);
+				    	$html_treated = str_replace('[unsubscribe]', $app_path.'/unsubscribe/'.short($email).'/'.short($subscriber_list).'/'.short($campaign_id), $html_treated);
+				    	$plain_treated = str_replace('[unsubscribe]', $app_path.'/unsubscribe/'.short($email).'/'.short($subscriber_list).'/'.short($campaign_id), $plain_treated);
 				    	
 				    	//Email tag
 						$html_treated = str_replace('[Email]', $email, $html_treated);
 						$plain_treated = str_replace('[Email]', $email, $plain_treated);
 						$title_treated = str_replace('[Email]', $email, $title_treated);
 						
-						//convert date tags
-						date_default_timezone_set($timezone!='' && $timezone!='0' ? $timezone : $user_timezone);
-						$today = time();
-						$currentdaynumber = strftime('%d', $today);
-						$currentday = strftime('%A', $today);
-						$currentmonthnumber = strftime('%m', $today);
-						$currentmonth = strftime('%B', $today);
-						$currentyear = strftime('%Y', $today);
-						$unconverted_date = array('[currentdaynumber]', '[currentday]', '[currentmonthnumber]', '[currentmonth]', '[currentyear]');
-						$converted_date = array($currentdaynumber, $currentday, $currentmonthnumber, $currentmonth, $currentyear);
-						$html_treated = str_replace($unconverted_date, $converted_date, $html_treated);
-						$plain_treated = str_replace($unconverted_date, $converted_date, $plain_treated);
-						$title_treated = str_replace($unconverted_date, $converted_date, $title_treated);
+						//set reconsent links
+				    	$html_treated = str_replace('[reconsent]', $app_path.'/r?e='.short($email).'&a='.short($app).'&w='.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id), $html_treated);
+				    	$plain_treated = str_replace('[reconsent]', $app_path.'/r?e='.short($email).'&a='.short($app).'&w='.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id), $plain_treated);
 				    	
 				    	//If opens tracking is enabled, add 1 x 1 px tracking image
 				    	if($opens_tracking)
 				    	{
 					    	//add tracking 1 by 1px image
-							$html_treated .= '<img src="'.APP_PATH.'/t/'.short($campaign_id).'/'.short($subscriber_id).'" alt="" style="width:1px;height:1px;"/>';
+							$html_treated .= '<img src="'.$app_path.'/t/'.short($campaign_id).'/'.short($subscriber_id).'" alt="" style="width:1px;height:1px;"/>';
 						}
 						
 						//Get server path
@@ -558,20 +598,6 @@
 							$mail->Username = $smtp_username;  
 							$mail->Password = $smtp_password;
 						}
-
-                        if(!$environment || $environment!='production') {
-                            if(!$environment) {
-                                $title_treated = '[development] '. $title_treated;
-                            }
-                            else {
-                                $title_treated = '['.$environment.'] '.$title_treated;
-                            }
-                            $html_treated = $html_treated. '\n<br>Original dest: '.$email ;
-                            $plain_treated = $plain_treated. '\nOriginal dest: '.$email ;
-                            $email = $testEmail;
-                            $user_email = $testEmail;
-                        }
-
 						$mail->Timezone   = $user_timezone;
 						$mail->CharSet	  =	"UTF-8";
 						$mail->From       = $from_email;
@@ -582,7 +608,7 @@
 						$mail->IsHTML(true);
 						$mail->AddAddress($email, $name);
 						$mail->AddReplyTo($reply_to, $from_name);
-						$mail->AddCustomHeader('List-Unsubscribe: <'.APP_PATH.'/unsubscribe/'.short($email).'/'.short($subscriber_list).'/'.short($campaign_id).'>');
+						$mail->AddCustomHeader('List-Unsubscribe: <'.$app_path.'/unsubscribe/'.short($email).'/'.short($subscriber_list).'/'.short($campaign_id).'>');
 						//check if attachments are available for this campaign to attach
 						if(file_exists($server_path.'uploads/attachments/'.$campaign_id))
 						{
@@ -604,11 +630,6 @@
 							$q14 = 'UPDATE subscribers SET last_campaign = '.$campaign_id.' WHERE id = '.$subscriber_id;
 							mysqli_query($mysqli, $q14);
 						}
-
-                        if(!$environment || $environment!='production') {
-                            //send just one if not in production
-                            break;
-                        }
 				    }  
 				    
 				    //====================== Send remaining in queue ======================//
@@ -750,8 +771,6 @@
 	
 				    $title_to_me = '['._('Campaign sent').'] '.$title;
 				    
-				    $app_path = APP_PATH;
-				    
 				    if($to_send_num=='' || $to_send>$to_send_num) $to_send_num = $to_send;
 				    
 				    $message_to_me_plain = _('Your campaign has been successfully sent to')." $to_send_num "._('recipients')."!
@@ -761,7 +780,7 @@
 				    $message_to_me_html = "
 				    <div style=\"margin: -10px -10px; padding:50px 30px 50px 30px; height:100%;\">
 						<div style=\"margin:0 auto; max-width:660px;\">
-							<div style=\"float: left; background-color: #FFFFFF; padding:10px 30px 10px 30px; border: 1px solid #DDDDDD;\">
+							<div style=\"float: left; background-color: #FFFFFF; padding:10px 30px 10px 30px; border: 1px solid #f6f6f6;\">
 								<div style=\"float: left; max-width: 106px; margin: 10px 20px 15px 0;\">
 									<img src=\"$app_path/img/email-icon.gif\" style=\"width: 100px;\"/>
 								</div>
@@ -771,7 +790,7 @@
 									</p>	
 									<div style=\"line-height: 21px; min-height: 100px; font-family: Helvetica, Verdana, Arial, sans-serif; font-size: 12px;\">
 										<p style=\"line-height: 21px; font-family: Helvetica, Verdana, Arial, sans-serif; font-size: 12px;\">"._('Your campaign has been successfully sent to')." $to_send_num "._('recipients')."!</p>
-										<p style=\"line-height: 21px; font-family: Helvetica, Verdana, Arial, sans-serif; font-size: 12px; margin-bottom: 25px; background-color:#EDEDED; padding: 15px;\">
+										<p style=\"line-height: 21px; font-family: Helvetica, Verdana, Arial, sans-serif; font-size: 12px; margin-bottom: 25px; background-color:#f7f9fc; padding: 15px;\">
 											<strong>"._('Campaign').": </strong>$campaign_title<br/>
 											<strong>"._('Recipients').": </strong>$to_send_num<br/>
 											<strong>"._('View report').": </strong><a style=\"color:#4371AB; text-decoration:none;\" href=\"$app_path/report?i=$app&c=$campaign_id\">$app_path/report?i=$app&c=$campaign_id</a>
@@ -839,19 +858,6 @@
 						$mail2->Username = $smtp_username;  
 						$mail2->Password = $smtp_password;
 					}
-					if(!$environment || $environment!='production') {
-                        if(!$environment) {
-                            $title_to_me = '[development] '. $title_to_me;
-                        }
-                        else {
-                            $title_to_me = '['.$environment.'] '.$title_to_me;
-                        }
-                        $message_to_me_html = $message_to_me_html. '\n<br>Original dest: '.$from_email.'\n<br>Original Bcc: '.$user_email ;
-                        $message_to_me_plain = $message_to_me_plain. '\nOriginal dest: '.$from_email.'\nOriginal Bcc: '.$user_email ;
-                        $from_email = $testEmail;
-                        $user_email = $testEmail;
-					}
-
 					$mail2->Timezone   = $user_timezone;
 					$mail2->CharSet	  =	"UTF-8";
 					$mail2->From       = $from_email;
@@ -860,12 +866,12 @@
 					$mail2->AltBody = $message_to_me_plain;
 					$mail2->Body = $message_to_me_html;
 					$mail2->IsHTML(true);
-					$mail2->AddAddress($from_email, $from_name); //send email to brand account owner
-					$mail2->AddBCC($user_email, $user_name); //send email to main account owner
+					$mail2->AddAddress($from_email, $from_name); //send email to 'From email' address that's used to send this campaign
+					if($notify_campaign_sent) $mail2->AddBCC($user_email, $user_name); //send email to main account owner
 					$mail2->Send();
 					
 					//Zapier Trigger 'new_user_subscribed' event
-					zapier_trigger_new_campaign_sent($title_treated, $from_name, $from_email, $reply_to, strftime("%a, %b %d, %Y, %I:%M%p", $sent), APP_PATH.'/w/'.short($campaign_id), $app);
+					zapier_trigger_new_campaign_sent($title_treated, $from_name, $from_email, $reply_to, strftime("%a, %b %d, %Y, %I:%M%p", $sent), $app_path.'/w/'.short($campaign_id), $app);
 					
 					//quit
 					exit;
@@ -898,7 +904,7 @@
 					$ch = curl_init();
 					curl_setopt($ch, CURLOPT_HEADER, 0);
 					curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-					curl_setopt($ch, CURLOPT_URL, APP_PATH.'/scheduled.php?offset='.$current_recipient_count);
+					curl_setopt($ch, CURLOPT_URL, $app_path.'/scheduled.php?offset='.$current_recipient_count);
 					curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 					curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
 					$data = curl_exec($ch);

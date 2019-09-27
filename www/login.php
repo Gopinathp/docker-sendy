@@ -10,6 +10,7 @@
 	
 	//Check error
 	$error = isset($_GET['e']) ? $_GET['e'] : '';
+	$info = isset($_GET['i']) ? $_GET['i'] : '';
 	
 	unlog_session();
 ?>
@@ -33,22 +34,16 @@
 		overflow: hidden;
 	}
 	.session_error{
-		width: 210px;
+		width: 220px;
 	}
 </style>
 <div>
     <div id="wrapper">
 	    
-	    <?php //if (!is_writable(session_save_path())) : ?>
-<!--
-	    <div class="alert alert-danger">
-		    <p class="session_error">Your server's <code>session.save_path</code> is either not set or is not writable. Please contact your hosting support to check that your <code>session.save_path</code> is set in your php.ini and is writable.</p>
-		    </div>
--->
-	    <?php //endif;?>
-	    
     	<?php if($error==1):?><div class="alert alert-danger" id="e1">Please fill in both email and password.</div><?php endif;?>
     	<?php if($error==2):?><div class="alert alert-danger" id="e2" style="width: 208px;">Incorrect password or user does not exist.</div><?php endif;?>
+    	<?php if($error==3):?><div class="alert alert-danger" id="e3" style="width: 208px;">Invalid password reset request.</div><?php endif;?>
+    	<?php if($info==1):?><div class="alert alert-success" id="i1" style="width: 208px;">Your new password has been sent to you.</div><?php endif;?>
 	    <form class="well form-inline" method="post" action="<?php echo get_app_info('path')?>/includes/login/main.php">
 	      <h2><span class="icon icon-lock" style="margin: 7px 7px 0 0;"></span><?php echo _('Login');?></h2><br/>
 		  <input type="text" class="input" placeholder="<?php echo _('Email');?>" name="email" id="email"><br/><br/>
@@ -59,11 +54,11 @@
 		</form>
     </div>   
     
-    <div id="forgot-form" class="modal hide fade">
+    <div id="forgot-form" class="modal hide fade" style="height: 175px;">
 	    <form class="well form-inline" method="post" action="<?php echo get_app_info('path')?>/includes/login/forgot.php" id="forgot">
 	      <h2><span class="icon icon-meh"></span> <?php echo _('Forgot password?');?></h2><br/>
 		  <input type="text" class="input" placeholder="<?php echo _('Your email');?>" name="email" id="forgot-email"><br/><br/>
-		  <button type="submit" class="btn" id="send-pass-btn"><i class="icon icon-key"></i> <?php echo _('Send password');?></button>
+		  <button type="submit" class="btn" id="send-pass-btn"><i class="icon icon-key"></i> <?php echo _('Send password reset email');?></button>
 		</form>
 		<script type="text/javascript">
 			$(document).ready(function() {
@@ -84,16 +79,20 @@
 					  function(data) {
 					      if(data)
 					      {
-					      	$("#send-pass-btn").html("<i class=\"icon icon-key\"></i> <?php echo _('Send password');?>");
+					      	$("#send-pass-btn").html("<i class=\"icon icon-key\"></i> <?php echo _('Send password reset email');?>");
 					      	
 					      	if(data=='<?php echo _('Email does not exist.');?>')
 					      		alert('<?php echo _('Email does not exist.');?>');
-					      	else if(data=='main_user')
+					      	else 
 					      	{
 						      	$('#forgot-form').modal('hide');
 						      	$('#password-sent').modal('show');
+						      	
+						      	if(data=='main_user')
+							      	$("#additional-line").show();
+						      	else 
+						      		$("#additional-line").hide();
 					      	}
-					      	else $('#forgot-form').modal('hide');
 					      }
 					      else
 					      {
@@ -112,7 +111,10 @@
       <h3><span class="icon icon-envelope"></span> <?php echo _('Password reset email has been sent to you');?></h3>
     </div>
     <div class="modal-body">
-	    <p>Your password has been reset, a password reset email has been sent to your email address. Please check your inbox as well as your spam folder for the email. <br/><br/> If you don't receive the password reset email, please <a href="https://sendy.co/troubleshooting#forgot-password" target="_blank" style="text-decoration: underline;">see this troubleshooting tip</a>.</p>
+	    <p>A password reset email has been sent to you. Please check your inbox as well as your spam folder for the email. 
+		    <br/><br/> 
+		    <span id="additional-line">If you don't receive the password reset confirmation email, please <a href="https://sendy.co/troubleshooting#forgot-password" target="_blank" style="text-decoration: underline;">see this troubleshooting tip</a>.</span>
+		</p>
     </div>
     <div class="modal-footer">
       <a href="#" class="btn btn-inverse" data-dismiss="modal"><i class="icon icon-ok-sign" style="margin-top: 5px;"></i> <?php echo _('Close');?></a>

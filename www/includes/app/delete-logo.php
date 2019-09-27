@@ -5,15 +5,15 @@
 	//                      	INIT                       //
 	//------------------------------------------------------//
 	
-	$app_id = mysqli_real_escape_string($mysqli, $_POST['id']);
-	$filename = mysqli_real_escape_string($mysqli, $_POST['filename']);
+	$app_id = isset($_POST['id']) && is_numeric($_POST['id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['id']) : exit;
+	$filename = mysqli_real_escape_string($mysqli, filter_var($_POST['filename'],FILTER_SANITIZE_SPECIAL_CHARS));
 	
 	//------------------------------------------------------//
 	//                      FUNCTIONS                       //
 	//------------------------------------------------------//
 	
 	//delete file
-	if(unlink('../../uploads/logos/'.$filename))
+	if(unlink('../../uploads/logos/'.basename($filename)))
 	{
 		//Remove filename from database
 		$q = 'UPDATE apps SET brand_logo_filename = \'\' WHERE id = '.$app_id;

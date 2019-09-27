@@ -4,7 +4,8 @@
 
 <?php 
 	//IDs
-	$lid = isset($_GET['l']) && is_numeric($_GET['l']) ? mysqli_real_escape_string($mysqli, $_GET['l']) : exit;
+	$lid = isset($_GET['l']) && is_numeric($_GET['l']) ? mysqli_real_escape_string($mysqli, (int)$_GET['l']) : exit;
+	$app = isset($_GET['i']) && is_numeric($_GET['i']) ? mysqli_real_escape_string($mysqli, (int)$_GET['i']) : exit;
 	
 	if(isset($_GET['e'])) $err = $_GET['e'];
 	else $err = '';
@@ -66,8 +67,14 @@
     </div> 
     <div class="span10">
     	<div>
-	    	<p class="lead"><?php echo get_app_data('app_name');?></p>
-	    	<p><?php echo _('List');?>: <span class="label"><?php echo get_list_data('name');?></span></p>
+	    	<p class="lead">
+		    	<?php if(get_app_info('is_sub_user')):?>
+			    	<?php echo get_app_data('app_name');?>
+		    	<?php else:?>
+			    	<a href="<?php echo get_app_info('path'); ?>/edit-brand?i=<?php echo get_app_info('app');?>" data-placement="right" title="<?php echo _('Edit brand settings');?>"><?php echo get_app_data('app_name');?></a>
+		    	<?php endif;?>
+		    </p>
+	    	<p><?php echo _('List');?>: <a href="<?php echo get_app_info('path');?>/subscribers?i=<?php echo get_app_info('app');?>&l=<?php echo $_GET['l'];?>"><span class="label label-info"><?php echo get_list_data('name');?></span></a></p>
 	    	<br/>
     	</div>
     	<h2><?php echo _('Mass unsubscribe via CSV file');?></h2><br/>
@@ -102,8 +109,8 @@
 	            </div>
 	        </div>
 	        
-	        <input type="hidden" name="list_id" value="<?php echo $_GET['l'];?>">
-	        <input type="hidden" name="app" value="<?php echo $_GET['i'];?>">
+	        <input type="hidden" name="list_id" value="<?php echo $lid;?>">
+	        <input type="hidden" name="app" value="<?php echo $app;?>">
 	        
 	        <br/>
 	        <button type="submit" class="btn btn-inverse"><?php echo _('Import');?></button>
@@ -128,8 +135,8 @@
 	            </div>
 	        </div>
 	        
-	        <input type="hidden" name="list_id" value="<?php echo $_GET['l'];?>">
-	        <input type="hidden" name="app" value="<?php echo $_GET['i'];?>">
+	        <input type="hidden" name="list_id" value="<?php echo $lid;?>">
+	        <input type="hidden" name="app" value="<?php echo $app;?>">
 	        
 	        <br/>
 	        <button type="submit" class="btn btn-inverse"><?php echo _('Unsubscribe');?></button>

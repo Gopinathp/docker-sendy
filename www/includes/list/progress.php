@@ -1,39 +1,5 @@
-<?php ini_set('display_errors', 0);?>
-<?php 
-	include('../config.php');
-	//--------------------------------------------------------------//
-	function dbConnect() { //Connect to database
-	//--------------------------------------------------------------//
-	    // Access global variables
-	    global $mysqli;
-	    global $dbHost;
-	    global $dbUser;
-	    global $dbPass;
-	    global $dbName;
-	    global $dbPort;
-	    
-	    // Attempt to connect to database server
-	    if(isset($dbPort)) $mysqli = new mysqli($dbHost, $dbUser, $dbPass, $dbName, $dbPort);
-	    else $mysqli = new mysqli($dbHost, $dbUser, $dbPass, $dbName);
-	
-	    // If connection failed...
-	    if ($mysqli->connect_error) {
-	        fail();
-	    }
-	    
-	    global $charset; mysqli_set_charset($mysqli, isset($charset) ? $charset : "utf8");
-	    
-	    return $mysqli;
-	}
-	//--------------------------------------------------------------//
-	function fail() { //Database connection fails
-	//--------------------------------------------------------------//
-	    print 'Database error';
-	    exit;
-	}
-	// connect to database
-	dbConnect();
-?>
+<?php include('../functions.php');?>
+<?php include('../login/auth.php');?>
 <?php 	
 	//init
 	$lid = isset($_POST['list_id']) && is_numeric($_POST['list_id']) ? (int)mysqli_real_escape_string($mysqli, $_POST['list_id']) : 0;
@@ -57,7 +23,7 @@
 		while($row = mysqli_fetch_array($r)) $count = $row['COUNT(*)'];
 		
 		//Get prev_count and currently_processing
-		$q = 'SELECT prev_count, currently_processing FROM lists WHERE id = '.$lid;
+		$q = 'SELECT prev_count, currently_processing, app FROM lists WHERE id = '.$lid;
 		$r = mysqli_query($mysqli, $q);
 		if ($r) 
 		{
@@ -65,20 +31,21 @@
 			{
 				$prev_count = $row['prev_count'];
 				$currently_processing = $row['currently_processing'];
+				$app = $row['app'];
 			}
 		}
 		
 		//If import is completed
 		if($linecount==0)
 		{
-			//Show count without percentage
-			echo $count;
+			//Redirect to subscribers page for this list
+			echo '<script type="text/javascript">window.location = "'.get_app_info('path').'/subscribers?i='.$app.'&l='.$lid.'";</script>';
 		}
 		//else, showing progress
 		else
 		{
 			$percentage = $currently_processing ? ($count-$prev_count) / $linecount * 100 : 0;
-			echo $count.' <span style="color:#488846;">('.round($percentage).'%)</span> <img src="img/loader.gif" style="width:16px;"/>';
+			echo '<span class="badge badge-success">'.$count.'</span>'.' <span style="color:#488846;">('.round($percentage).'%)</span> <img src="img/loader.gif" style="width:16px;"/>';
 		}
 	}
 ?>

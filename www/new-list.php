@@ -6,7 +6,7 @@
 <script type="text/javascript" src="<?php echo get_app_info('path');?>/js/validate.js"></script>
 <script type="text/javascript">
 	$(document).ready(function() {
-		$("#list-form").validate({
+		$("#list-form2").validate({
 			rules: {
 				list_name: {
 					required: true	
@@ -16,6 +16,7 @@
 				list_name: "<?php echo addslashes(_('List name is required'));?>"
 			}
 		});
+		$("#list_name").focus();
 	});
 </script>
 
@@ -25,10 +26,16 @@
     </div> 
     <div class="span10">
     	<div>
-	    	<p class="lead"><?php echo get_app_data('app_name');?></p>
+	    	<p class="lead">
+		    	<?php if(get_app_info('is_sub_user')):?>
+			    	<?php echo get_app_data('app_name');?>
+		    	<?php else:?>
+			    	<a href="<?php echo get_app_info('path'); ?>/edit-brand?i=<?php echo get_app_info('app');?>" data-placement="right" title="<?php echo _('Edit brand settings');?>"><?php echo get_app_data('app_name');?></a>
+		    	<?php endif;?>
+		    </p>
     	</div>
     	<h2><?php echo _('Add a new list');?></h2><br/>
-	    <form action="<?php echo get_app_info('path')?>/includes/subscribers/import-add.php" method="POST" accept-charset="utf-8" class="form-vertical" enctype="multipart/form-data" id="list-form">
+	    <form action="<?php echo get_app_info('path')?>/includes/subscribers/import-add.php" method="POST" accept-charset="utf-8" class="form-vertical" enctype="multipart/form-data" id="list-form2">
 	    	
 	    	<label class="control-label" for="list_name"><?php echo _('List name');?></label>
 	    	<div class="control-group">

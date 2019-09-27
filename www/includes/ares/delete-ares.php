@@ -1,7 +1,7 @@
 <?php include('../functions.php');?>
 <?php include('../login/auth.php');?>
 <?php 
-	$id = mysqli_real_escape_string($mysqli, $_POST['id']);
+	$id = isset($_POST['id']) && is_numeric($_POST['id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['id']) : exit;
 	
 	$q = 'DELETE FROM ares WHERE id = '.$id;
 	$r = mysqli_query($mysqli, $q);
@@ -23,15 +23,18 @@
 					}
 					rmdir('../../uploads/attachments/a'.$ares_email_id);
 				}
+				
+				//Delete links
+				$q4 = 'DELETE FROM links WHERE ares_emails_id = '.$ares_email_id;
+				mysqli_query($mysqli, $q4);
 		    }  
 		}
 		
+		//Delete autoresponder emails
 		$q2 = 'DELETE FROM ares_emails WHERE ares_id = '.$id;
-		$r2 = mysqli_query($mysqli, $q2);
-		if ($r2)
-		{
-			echo true;
-		}
+		mysqli_query($mysqli, $q2);
+		
+		echo true;
 	}
 	
 ?>

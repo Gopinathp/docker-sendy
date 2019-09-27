@@ -5,8 +5,8 @@
 	//                      VARIABLES                       //
 	//------------------------------------------------------//
 	
-	$campaign_id = mysqli_real_escape_string($mysqli, $_POST['campaign_id']);
-	$app_id = mysqli_real_escape_string($mysqli, $_POST['on-brand']);
+	$campaign_id = isset($_POST['campaign_id']) && is_numeric($_POST['campaign_id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['campaign_id']) : exit;
+	$app_id = isset($_POST['on-brand']) && is_numeric($_POST['on-brand']) ? mysqli_real_escape_string($mysqli, (int)$_POST['on-brand']) : exit;
 	
 	//------------------------------------------------------//
 	//                      FUNCTIONS                       //

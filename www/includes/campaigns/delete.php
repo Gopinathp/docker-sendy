@@ -1,7 +1,7 @@
 <?php include('../functions.php');?>
 <?php include('../login/auth.php');?>
 <?php 
-	$campaign_id = mysqli_real_escape_string($mysqli, $_POST['campaign_id']);
+	$campaign_id = isset($_POST['campaign_id']) && is_numeric($_POST['campaign_id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['campaign_id']) : exit;
 	
 	//Get the existing number of quota_deducted
 	$q = 'SELECT app, quota_deducted FROM campaigns WHERE id = '.$campaign_id;

@@ -5,11 +5,11 @@
 <?php
 
 //POST variables
-$campaign_id = mysqli_real_escape_string($mysqli, $_POST['campaign_id']);
+$display_errors = isset($_POST['display_errors']) && is_numeric($_POST['display_errors']) ? mysqli_real_escape_string($mysqli, (int)$_POST['display_errors']) : 0;
+$campaign_id = isset($_POST['campaign_id']) && is_numeric($_POST['campaign_id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['campaign_id']) : exit;
 $test_email = mysqli_real_escape_string($mysqli, $_POST['test_email']);
 $test_email = str_replace(" ", "", $test_email);
 $test_email_array = explode(',', $test_email);
-$webversion = $_POST['webversion'];
 
 //select campaign to send test email
 $q = 'SELECT * FROM campaigns WHERE id = '.$campaign_id.' AND userID = '.get_app_info('main_userID');
@@ -25,6 +25,42 @@ if ($r && mysqli_num_rows($r) > 0)
 		$plain_text = stripslashes($row['plain_text']);
 		$html_text = stripslashes($row['html_text']);
     }  
+    
+    //get smtp settings
+	$q3 = 'SELECT apps.id, apps.smtp_host, apps.smtp_port, apps.smtp_ssl, apps.smtp_username, apps.smtp_password, apps.allocated_quota, apps.custom_domain, apps.custom_domain_protocol, apps.custom_domain_enabled FROM campaigns, apps WHERE apps.id = campaigns.app AND campaigns.id = '.$campaign_id;
+	$r3 = mysqli_query($mysqli, $q3);
+	if ($r3 && mysqli_num_rows($r3) > 0)
+	{
+	    while($row = mysqli_fetch_array($r3))
+	    {
+	    	$app = $row['id'];
+			$smtp_host = $row['smtp_host'];
+			$smtp_port = $row['smtp_port'];
+			$smtp_ssl = $row['smtp_ssl'];
+			$smtp_username = $row['smtp_username'];
+			$smtp_password = $row['smtp_password'];
+			$allocated_quota = $row['allocated_quota'];
+			$custom_domain = $row['custom_domain'];
+			$custom_domain_protocol = $row['custom_domain_protocol'];
+			$custom_domain_enabled = $row['custom_domain_enabled'];
+			if($custom_domain!='' && $custom_domain_enabled)
+			{
+				$parse = parse_url(get_app_info('path'));
+				$domain = $parse['host'];
+				$protocol = $parse['scheme'];
+				$app_path = str_replace($domain, $custom_domain, get_app_info('path'));
+				$app_path = str_replace($protocol, $custom_domain_protocol, $app_path);
+			}
+			else $app_path = get_app_info('path');
+	    }  
+	}
+	
+	$webversion = $app_path.'/w/'.short($campaign_id);
+	
+	//Get `test_email_prefix` value
+	$q4 = 'SELECT test_email_prefix FROM apps WHERE id = '.$app;
+	$r4 = mysqli_query($mysqli, $q4);
+	if ($r4 && mysqli_num_rows($r4) > 0) while($row = mysqli_fetch_array($r4)) $test_email_prefix = $row['test_email_prefix'];
     
     //tags for subject
 	preg_match_all('/\[([a-zA-Z0-9!#%^&*()+=$@._\-\:|\/?<>~`"\'\s]+),\s*fallback=/i', $title, $matches_var, PREG_PATTERN_ORDER);
@@ -89,10 +125,14 @@ if ($r && mysqli_num_rows($r) > 0)
 	$plain_text = str_replace('[webversion]', $webversion, $plain_text);
 	
 	//set unsubscribe links
-	$html_text = str_replace('<unsubscribe', '<a href="'.get_app_info('path').'/unsubscribe-success.php?c='.$campaign_id.'" ', $html_text);
+	$html_text = str_replace('<unsubscribe', '<a href="'.$app_path.'/unsubscribe-success.php?c='.$campaign_id.'" ', $html_text);
 	$html_text = str_replace('</unsubscribe>', '</a>', $html_text);
-	$html_text = str_replace('[unsubscribe]', get_app_info('path').'/unsubscribe-success.php?c='.$campaign_id, $html_text);
-	$plain_text = str_replace('[unsubscribe]', get_app_info('path').'/unsubscribe-success.php?c='.$campaign_id, $plain_text);
+	$html_text = str_replace('[unsubscribe]', $app_path.'/unsubscribe-success.php?c='.$campaign_id, $html_text);
+	$plain_text = str_replace('[unsubscribe]', $app_path.'/unsubscribe-success.php?c='.$campaign_id, $plain_text);
+	
+	//set reconsent links
+	$html_text = str_replace('[reconsent]', $app_path.'/reconsent-success?c='.$campaign_id, $html_text);
+	$plain_text = str_replace('[reconsent]', $app_path.'/reconsent-success.php?c='.$campaign_id, $plain_text);
 	
 	//convert date tags
 	if(get_app_info('timezone')!='') date_default_timezone_set(get_app_info('timezone'));
@@ -107,23 +147,6 @@ if ($r && mysqli_num_rows($r) > 0)
 	$html_text = str_replace($unconverted_date, $converted_date, $html_text);
 	$plain_text = str_replace($unconverted_date, $converted_date, $plain_text);
 	$title = str_replace($unconverted_date, $converted_date, $title);
-	
-	//get smtp settings
-	$q3 = 'SELECT apps.id, apps.smtp_host, apps.smtp_port, apps.smtp_ssl, apps.smtp_username, apps.smtp_password, apps.allocated_quota FROM campaigns, apps WHERE apps.id = campaigns.app AND campaigns.id = '.$campaign_id;
-	$r3 = mysqli_query($mysqli, $q3);
-	if ($r3 && mysqli_num_rows($r3) > 0)
-	{
-	    while($row = mysqli_fetch_array($r3))
-	    {
-	    	$app = $row['id'];
-			$smtp_host = $row['smtp_host'];
-			$smtp_port = $row['smtp_port'];
-			$smtp_ssl = $row['smtp_ssl'];
-			$smtp_username = $row['smtp_username'];
-			$smtp_password = $row['smtp_password'];
-			$allocated_quota = $row['allocated_quota'];
-	    }  
-	}
 }
 
 for($i=0;$i<count($test_email_array);$i++)
@@ -132,6 +155,7 @@ for($i=0;$i<count($test_email_array);$i++)
 	$html_text2 = str_replace('[Email]', $test_email_array[$i], $html_text);
 	$plain_text2 = str_replace('[Email]', $test_email_array[$i], $plain_text);
 	$title2 = str_replace('[Email]', $test_email_array[$i], $title);
+	$title2 = $test_email_prefix!='' ? $test_email_prefix.' '.$title2 : $title2;
 	
 	//send test email
 	$mail = new PHPMailer();
@@ -143,7 +167,7 @@ for($i=0;$i<count($test_email_array);$i++)
 	else if($smtp_host!='' && $smtp_port!='' && $smtp_username!='' && $smtp_password!='')
 	{
 		$mail->IsSMTP();
-		$mail->SMTPDebug = 0;
+		$mail->SMTPDebug = $display_errors ? 3 : 0;
 		$mail->SMTPAuth = true;
 		$mail->SMTPSecure = $smtp_ssl;
 		$mail->Host = $smtp_host;
@@ -161,10 +185,15 @@ for($i=0;$i<count($test_email_array);$i++)
 	$mail->IsHTML(true);
 	$mail->AddAddress($test_email_array[$i], '');
 	$mail->AddReplyTo($reply_to, $from_name);
-	$mail->AddCustomHeader('List-Unsubscribe: <'.APP_PATH.'/unsubscribe-success.php?c='.$campaign_id.'>');
+	$mail->AddCustomHeader('List-Unsubscribe: <'.$app_path.'/unsubscribe-success.php?c='.$campaign_id.'>');
 	if(file_exists('../../uploads/attachments/'.$campaign_id))
 	{
-		foreach(glob('../../uploads/attachments/'.$campaign_id.'/*') as $attachment){
+		foreach(glob('../../uploads/attachments/'.$campaign_id.'/*') as $attachment)
+		{
+			$attachment = filter_var($attachment,FILTER_SANITIZE_SPECIAL_CHARS);
+			$attachment_filename = basename($attachment);
+			$attachment = '../../uploads/attachments/'.$campaign_id.'/'.$attachment_filename;
+			
 			if(file_exists($attachment))
 			    $mail->AddAttachment($attachment);
 		}

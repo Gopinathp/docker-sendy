@@ -3,8 +3,8 @@
 <?php include('../reports/main.php');?>
 <?php 
 	//POST variables
-	$id = mysqli_real_escape_string($mysqli, $_POST['id']);
-	$app = mysqli_real_escape_string($mysqli, $_POST['app']);
+	$id = isset($_POST['id']) && is_numeric($_POST['id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['id']) : exit;
+	$app = isset($_POST['app']) && is_numeric($_POST['app']) ? mysqli_real_escape_string($mysqli, (int)$_POST['app']) : exit;
 
 	//get subscriber data
 	$q = 'SELECT * FROM subscribers WHERE id = '.$id;
@@ -21,6 +21,38 @@
 			$complaint = $row['complaint'];
 			$confirmed = $row['confirmed'];
 			$last_campaign = $row['last_campaign'];
+			$join_date = $row['join_date'];
+			$last_activity = $row['timestamp'];
+			$ip = $row['ip']=='' ? 'No data' : $row['ip'];
+			$signedup_country = $row['country']=='' ? 'No data' : $row['country'];
+			$referrer = $row['referrer'];
+			$gdpr = $row['gdpr'];
+			$gdpr_status = $gdpr ? 'Yes' : 'No';
+			$notes = $row['notes'];
+			$notes_br = nl2br($notes);
+			
+			//Opt-in method
+			$optin_method = $row['method'];
+			if($optin_method==1) $optin_method = 'Single opt-in';
+			else if($optin_method==2) $optin_method = 'Double opt-in';
+			
+			//Added via
+			$added_via = $row['added_via'];
+			if($added_via=='')
+			{
+				if($join_date=='') $added_via = 'App interface';
+				else $added_via = 'API';
+			}
+			else
+			{
+				if($added_via==1 || $join_date=='')
+					$added_via = 'Application interface';
+				else if($added_via==2 || ($join_date!='' && $ip=='No data' && $signedup_country=='No data'))
+					$added_via = 'API';
+				else if($added_via==3)
+					$added_via = 'Standard subscribe form';
+			}
+			
 			if($unsubscribed==0)
   				$status = '<span class="label label-success">'._('Subscribed').'</span>';
   			else if($unsubscribed==1)
@@ -41,19 +73,17 @@
 	//get list name
 	$q = 'SELECT name FROM lists WHERE id = '.$list_id;
 	$r = mysqli_query($mysqli, $q);
-	if ($r)
-	{
-	    while($row = mysqli_fetch_array($r))
-	    {
-			$list = $row['name'];
-	    }  
-	}
+	if ($r) while($row = mysqli_fetch_array($r)) $list = $row['name'];
 ?>
 <div class="row-fluid">
-	<div class="span2">
-		<img src="<?php echo get_gravatar($email);?>" class="gravatar"/>
+	<div class="span1">
+		<img src="<?php echo get_gravatar($email);?>" class="gravatar" style="margin-bottom: 5px;"/>
+		<?php if($gdpr):?>
+		<br/>
+		<span class="label label-warning" style="margin: 5px 0 0 0px;">GDPR</span>
+		<?php endif;?>
 	</div>
-    <div class="span5">	    	
+    <div class="span5">	 		   	
     	<strong><?php echo _('Name');?>: </strong>
     	<span id="edit-name"><?php echo $name;?></span>
     	<input type="text" name="name" id="name" value="<?php echo strip_tags($name);?>" style="width: 70%; margin-top: 5px; display:none;"/><br/>
@@ -74,12 +104,8 @@
 		    		$(this).hide();
 		    		$("#edit-name").show();
 	    		});
-	    		$("#name").keypress(function(e){
-				    if(e.which == 13)
-				    {
-				    	update_name();
-				    }
-				});
+	    		$("#name").keypress(function(e){if(e.which == 13){update_name();}});
+				$("#name").focusout(function(){update_name();});
 				function update_name()
 				{
 					$("#edit-name").show(0, function(){
@@ -123,17 +149,13 @@
 		    		$(this).hide();
 		    		$("#edit-email").show();
 	    		});
-	    		$("#email").keypress(function(e){
-				    if(e.which == 13)
-				    {
-				    	update_email();
-				    }
-				});
+	    		$("#email").keypress(function(e){if(e.which == 13){update_email();}});
+	    		$("#email").focusout(function(){update_email();});
 				function update_email()
 				{			
 					$("#edit-email").show(0, function(){
 						if($("#email").val() != $(this).text())
-						$.post("<?php echo get_app_info('path')?>/includes/subscribers/edit.php", { sid: <?php echo $id;?>, email: $("#email").val() },
+						$.post("<?php echo get_app_info('path')?>/includes/subscribers/edit.php", { sid: <?php echo $id;?>, email: $("#email").val(), app: <?php echo $app;?> },
 						  function(data) {
 						      if(data != 1)
 						      {
@@ -151,6 +173,48 @@
 				}
     		});
     	</script>
+    	
+    	<?php if($join_date!=''):?>
+    	<strong><?php echo _('Joined');?>: </strong>
+    	<span><?php echo parse_date($join_date, 'modal', false)?></span>
+    	<br/>
+    	<?php endif;?>
+    	
+    	<?php if($last_activity!=''):?>
+    	<strong><?php echo _('Last activity');?>: </strong>
+    	<span><?php echo parse_date($last_activity, 'modal', false)?></span>
+    	<br/>
+    	<?php endif;?>
+    	
+    	<?php if($optin_method!=''):?>
+    	<strong><?php echo _('Opt-in method');?>: </strong>
+    	<span><?php echo $optin_method;?></span>
+    	<br/>
+    	<?php endif;?>
+    	
+    	<?php if($confirmed):?>
+    	<strong><?php echo _('Added via');?>: </strong>
+    	<span><?php echo $added_via;?></span>
+    	<br/>
+    	<?php endif;?>
+    	
+    	<?php if($ip!='' && $ip!='No data'):?>
+    	<strong><?php echo _('IP address');?>: </strong>
+    	<span><?php echo $ip;?></span>
+    	<br/>
+    	<?php endif;?>
+    	
+    	<?php if($signedup_country!='' && $signedup_country!='No data'):?>
+    	<strong><?php echo _('Country');?>: </strong>
+    	<span><?php echo country_code_to_country($signedup_country).' ('.$signedup_country.')';?></span>
+    	<br/>
+    	<?php endif;?>
+    	
+    	<?php if($referrer!=''):?>
+    	<strong><?php echo _('Signed up from');?>: </strong>
+    	<span><a href="<?php echo $referrer;?>" title="<?php echo $referrer;?>" target="_blank"><?php echo strlen($referrer)>30 ? substr($referrer, 0, 30).'..' : $referrer;?></a></span>
+    	<br/>
+    	<?php endif;?>
 		
 		<?php 
 			//get custom fields and values
@@ -167,6 +231,7 @@
 			    //if there's custom fields for this list, show custom fields and their values
 			    if($custom_fields!='')
 			    {
+				    echo '<hr/><h4 style="margin: -15px 0 -15px 0;">Custom fields</h4><hr style="margin-bottom: 5px;"/>';
 				    $custom_fields_array = explode('%s%', $custom_fields);
 				    
 				    $i = 0;
@@ -226,6 +291,7 @@
 								    	update_<?php echo $cf_field_without_dash;?>();
 								    }
 								});
+								$("#<?php echo $cf_field_without_dash;?>").focusout(function(){update_<?php echo $cf_field_without_dash;?>();});
 								function update_<?php echo $cf_field_without_dash;?>()
 								{			
 									$("#edit-<?php echo $cf_field_without_dash;?>").show(0, function(){
@@ -257,9 +323,62 @@
 			}
 		?>
     </div>
-    <div class="span5">
-		<strong><?php echo _('List');?>: <span class="label label-info"><?php echo $list;?></span></strong><br/>
-		<strong><?php echo _('Status');?>: <?php echo $status;?></strong>
+    <div class="span6">
+		<strong><?php echo _('List');?></strong>: <span class="label label-info"><?php echo $list;?></span><br/>
+		<strong><?php echo _('Status');?></strong>: <?php echo $status;?><br/>
+		<strong><?php echo _('Notes');?>:</strong>
+		<br/>
+		<div id="subscriber-notes" class="alert alert-info">
+			<div id="edit-note"><?php echo $notes=='' ? _('Click to add a note for this subscriber.') : $notes_br;?></div>
+			<textarea id="note" style="display:none; width: 100%; height: 190px;"><?php echo $notes;?></textarea>
+		</div>
+		<script type="text/javascript">
+			$("#edit-note").mouseover(function(){
+    			$(this).css("text-decoration", "underline");
+			});
+			$("#edit-note").mouseout(function(){
+    			$(this).css("text-decoration", "none");
+			});
+			$("#edit-note").click(function(){
+	    		$(this).hide();
+	    		$("#note").show();
+	    		$("#note").focus();
+    		});
+    		$("#note").blur(function(){
+	    		$(this).hide();
+	    		$("#edit-note").show();
+	    		$("#edit-note").html("<?php echo _('Saving..')?>");
+    		});
+			$("#note").focusout(function(){update_note();});
+			$("#note").keypress(function(e){if((e.metaKey || e.ctrlKey) && e.which == 13){$(this).blur();}});
+			function update_note()
+			{
+				$("#edit-note").show(1, function(){
+					if($("#note").val() != $(this).text())
+					$.post("<?php echo get_app_info('path')?>/includes/subscribers/edit.php", { sid: <?php echo $id;?>, note: $("#note").val() },
+					  function(data) {
+					      if(data != 1)
+					      {
+					      	$("#edit-note").text($("#edit-note").text());
+					      	alert("<?php echo _('Sorry, unable to save. Please try again later!');?>");
+					      }
+					      else
+					      {
+						      if($("#note").val()=="")
+						      	  $("#edit-note").html("<?php echo _('Click to add a note for this subscriber.');?>");
+						      else
+							      $("#edit-note").html(nl2br($("#note").val()));
+					      }
+					  }
+					);
+				});
+	    		$("#note").hide();
+			}
+			function nl2br (str, is_xhtml) {   
+			    var breakTag = (is_xhtml || typeof is_xhtml === 'undefined') ? '<br />' : '<br>';    
+			    return (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1'+ breakTag +'$2');
+			}
+		</script>
     </div>
 </div>
 <hr>
@@ -315,10 +434,12 @@
 		  				$clicks = $row['clicks'];
 		  				$link = $row['link'];
 		  				$clicks_array = explode(',', $clicks);
-		  				if(in_array($id, $clicks_array))
+		  				foreach($clicks_array as $ca)
+		  				if($ca==$id)
 		  				{
 		  					$click_count++;
-		  					array_push($link_array, $link);
+		  					if(!in_array($link, $link_array))
+			  					array_push($link_array, $link);
 		  				}
 		  		    }  
 		  		    for($y=0;$y<count($link_array);$y++)
@@ -332,11 +453,15 @@
 		  			$cty = country_code_to_country($country);
 		  			if($cty=='')
 		  				$cty = _('Not detected');
-			  		echo '
-				  	<tr>
-				      <td><a href="'.get_app_info('path').'/report?i='.$app.'&c='.$campaign_id.'" title="'._('View report for').' '.$title.'">'.$title.'</a></td>
-				      <td>'.$open_count.'</td>
-				    ';
+		  				
+		  			echo '<tr>';
+		  			
+		  			if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('reports_only')==0))
+				  		echo '<td><a href="'.get_app_info('path').'/report?i='.$app.'&c='.$campaign_id.'" title="'._('View report for').' '.$title.'">'.$title.'</a></td>';
+				  	else
+				  		echo '<td>'.$title.'</td>';
+				    
+				    echo '<td>'.$open_count.'</td>';
 				    
 				    if(count($link_array)==0)
 				    	echo '<td>0</td>';

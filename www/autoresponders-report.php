@@ -3,17 +3,20 @@
 <?php include('includes/ares-reports/main.php');?>
 <?php include('includes/helpers/short.php');?>
 <?php 
+	$ar = is_numeric($_GET['a']) ? (int)$_GET['a'] : exit;
+	$ae = is_numeric($_GET['ae']) ? (int)$_GET['ae'] : exit;
+	
 	if(get_app_info('is_sub_user')) 
 	{
 		if(get_app_info('app')!=get_app_info('restricted_to_app'))
 		{
-			echo '<script type="text/javascript">window.location="'.addslashes(get_app_info('path')).'/autoresponders-report.php?i='.get_app_info('restricted_to_app').'&a='.$_GET['a'].'&ae='.$_GET['ae'].'"</script>';
+			echo '<script type="text/javascript">window.location="'.addslashes(get_app_info('path')).'/autoresponders-report.php?i='.get_app_info('restricted_to_app').'&a='.$ar.'&ae='.$ae.'"</script>';
 			exit;
 		}
 	}
 ?>
 <?php 
-	$q = 'SELECT * FROM ares_emails WHERE id = '.mysqli_real_escape_string($mysqli, $_GET['ae']);
+	$q = 'SELECT * FROM ares_emails WHERE id = '.mysqli_real_escape_string($mysqli, $ae);
 	$r = mysqli_query($mysqli, $q);
 	if ($r && mysqli_num_rows($r) > 0)
 	{
@@ -44,14 +47,14 @@
 	  		}
 	  		if($recipients==0 || $recipients=='') 
 	  		{
-	  			$click_per = round(get_click_percentage($_GET['ae']) *100, 4);
+	  			$click_per = round(get_click_percentage($ae) *100, 4);
 	  			$unsubscribe_per = round(get_unsubscribes() *100, 4);
 	  			$bounce_percentage = round(get_bounced() * 100, 2);
 		  		$complaint_percentage = round(get_complaints() * 100, 2);
 	  		}
 	  		else 
 	  		{
-	  			$click_per = round(get_click_percentage($_GET['ae'])/($recipients-get_bounced()) *100, 4);
+	  			$click_per = round(get_click_percentage($ae)/($recipients-get_bounced()) *100, 4);
 	  			$unsubscribe_per = round(get_unsubscribes()/($recipients-get_bounced()) *100, 4);
 	  			$bounce_percentage = round((get_bounced()/$recipients) * 100, 2);
 		  		$complaint_percentage = round((get_complaints()/$recipients) * 100, 2);
@@ -87,7 +90,7 @@
     $(document).ready(function() {
     	
     	Highcharts.setOptions({
-	        colors: ['#1F1F1F', '#1F1F1F', '#B94A48', '#3A87AD', '#F89406', '#468847', '#999999']
+	        colors: ['#1F1F1F', '#1F1F1F', '#ce5c56', '#579fc8', '#eeca46', '#70bd6c', '#999999']
 	    });
     	
         chart = new Highcharts.Chart({
@@ -151,7 +154,7 @@
             },
             {
                 name: '<?php echo _('Clicked');?>',
-                data: [<?php echo get_click_percentage($_GET['ae']);?>]
+                data: [<?php echo get_click_percentage($ae);?>]
             },
             {
                 name: '<?php echo _('Unopened');?>',
@@ -178,7 +181,13 @@
     </div> 
     <div class="span10">
     	<div>
-	    	<p class="lead"><?php echo get_app_data('app_name');?></p>
+	    	<p class="lead">
+		    	<?php if(get_app_info('is_sub_user')):?>
+			    	<?php echo get_app_data('app_name');?>
+		    	<?php else:?>
+			    	<a href="<?php echo get_app_info('path'); ?>/edit-brand?i=<?php echo get_app_info('app');?>" data-placement="right" title="<?php echo _('Edit brand settings');?>"><?php echo get_app_data('app_name');?></a>
+		    	<?php endif;?>
+		    </p>
     	</div>
     	<h2><?php echo _('Autoresponder report');?></h2><br/>
     	
@@ -200,7 +209,7 @@
 	    		<div class="well">
 			    	<h3><?php if($opens_tracking): ?><span class="badge badge-success" style="font-size:16px;"><?php echo $percentage_opened;?>%</span> <?php echo _('opened');?> <span class="label"><?php echo $opens_unique;?> <?php echo _('unique');?> / <?php echo _('opened');?> <?php echo $opens_all;?> <?php echo _('times');?></span><?php else: ?><span class="badge" style="font-size:16px;"><?php echo _('Tracking disabled for opens');?></span><?php endif;?></h3><br/>
 			    	<h3><?php if($opens_tracking): ?><span class="badge badge-warning" style="font-size:16px;"><?php echo $recipients - $opens_unique;?></span> <?php echo _('not opened');?><?php else: ?><span class="badge" style="font-size:16px;"><?php echo _('Tracking disabled for opens');?></span><?php endif;?></h3><br/>
-			    	<h3><?php if($links_tracking): ?><span class="badge badge-info" style="font-size:16px;"><?php echo $click_per;?>%</span> <?php echo _('clicked a link');?> <span class="label"><?php echo get_click_percentage($_GET['ae']);?> <?php echo _('clicked');?></span><?php else: ?><span class="badge" style="font-size: 16px;"><?php echo _('Tracking disabled for clicks');?></span><?php endif;?></h3>
+			    	<h3><?php if($links_tracking): ?><span class="badge badge-info" style="font-size:16px;"><?php echo $click_per;?>%</span> <?php echo _('clicked a link');?> <span class="label"><?php echo get_click_percentage($ae);?> <?php echo _('clicked');?></span><?php else: ?><span class="badge" style="font-size: 16px;"><?php echo _('Tracking disabled for clicks');?></span><?php endif;?></h3>
 			    </div>
 	    	</div>
 	    	
@@ -236,7 +245,7 @@
 			  <tbody>
 			  	
 			  	<?php 
-				  	$q = 'SELECT * FROM links WHERE ares_emails_id = '.mysqli_real_escape_string($mysqli, $_GET['ae']);
+				  	$q = 'SELECT * FROM links WHERE ares_emails_id = '.mysqli_real_escape_string($mysqli, $ae);
 				  	$r = mysqli_query($mysqli, $q);
 				  	if ($r && mysqli_num_rows($r) > 0)
 				  	{
@@ -310,7 +319,7 @@
 			  <tbody>
 			  	
 			  	<?php 
-				  	$q = 'SELECT opens FROM ares_emails WHERE id = '.mysqli_real_escape_string($mysqli, $_GET['ae']);
+				  	$q = 'SELECT opens FROM ares_emails WHERE id = '.mysqli_real_escape_string($mysqli, $ae);
 				  	$r = mysqli_query($mysqli, $q);
 				  	if ($r && mysqli_num_rows($r) > 0)
 				  	{
@@ -433,7 +442,7 @@
 			  <tbody>
 			  	
 			  	<?php 
-				  	$q = 'SELECT * FROM subscribers WHERE unsubscribed = 1 AND last_ares = '.mysqli_real_escape_string($mysqli, $_GET['ae']).' LIMIT 10';
+				  	$q = 'SELECT * FROM subscribers WHERE unsubscribed = 1 AND last_ares = '.mysqli_real_escape_string($mysqli, $ae).' LIMIT 10';
 				  	$r = mysqli_query($mysqli, $q);
 				  	if ($r && mysqli_num_rows($r) > 0)
 				  	{
@@ -515,7 +524,7 @@
 			  <tbody>
 			  	
 			  	<?php 
-				  	$q = 'SELECT * FROM subscribers WHERE bounced = 1 AND last_ares = '.mysqli_real_escape_string($mysqli, $_GET['ae']).' LIMIT 10';
+				  	$q = 'SELECT * FROM subscribers WHERE bounced = 1 AND last_ares = '.mysqli_real_escape_string($mysqli, $ae).' LIMIT 10';
 				  	$r = mysqli_query($mysqli, $q);
 				  	if ($r && mysqli_num_rows($r) > 0)
 				  	{
@@ -596,7 +605,7 @@
 			  <tbody>
 			  	
 			  	<?php 
-				  	$q = 'SELECT * FROM subscribers WHERE complaint = 1 AND last_ares = '.mysqli_real_escape_string($mysqli, $_GET['ae']).' LIMIT 10';
+				  	$q = 'SELECT * FROM subscribers WHERE complaint = 1 AND last_ares = '.mysqli_real_escape_string($mysqli, $ae).' LIMIT 10';
 				  	$r = mysqli_query($mysqli, $q);
 				  	if ($r && mysqli_num_rows($r) > 0)
 				  	{
@@ -736,6 +745,10 @@
 		  			<script type="text/javascript">
 		  				var chart2;
 						$(document).ready(function() {
+							Highcharts.setOptions({
+						        colors: ['<?php echo count($country_count_array)==0 ? '#e3e5e7' : '#579fc8';?>', '#ce5c56', '#eeca46', '#70bd6c']
+						    });
+							
 							chart2 = new Highcharts.Chart({
 								chart: {
 									renderTo: 'countries-container',
@@ -778,30 +791,39 @@
 									data: [
 										<?php 
 											$ct = 0;
-											foreach($country_count_array as $cca)
-								  			{
-								  				if($ct<10)
-								  				{
-									  				$cc = explode('%',$cca);
-									  				
-									  				if($ct==0)
+											if(count($country_count_array)==0)
+											{
+												echo '
+									  			[\'No countries detected\',   100],
+									  			';
+											}
+											else
+											{
+												foreach($country_count_array as $cca)
+									  			{
+									  				if($ct<10)
 									  				{
-										  				echo '{
-															name: "'.$cc[1].'",
-															y: '.$cc[0].',
-															sliced: true,
-															selected: true
-														},';
-									  				}
-									  				else
-									  				{
-											  			echo '
-											  			[\''.$cc[1].'\',   '.$cc[0].'],
-											  			';
+										  				$cc = explode('%',$cca);
+										  				
+										  				if($ct==0)
+										  				{
+											  				echo '{
+																name: "'.$cc[1].'",
+																y: '.$cc[0].',
+																sliced: true,
+																selected: true
+															},';
+										  				}
+										  				else
+										  				{
+												  			echo '
+												  			[\''.addslashes($cc[1]).'\',   '.$cc[0].'],
+												  			';
+												  		}
 											  		}
+											  		$ct++;
 										  		}
-										  		$ct++;
-									  		}
+										  	}
 										?>
 									]
 								}],

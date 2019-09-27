@@ -2,7 +2,7 @@
 <?php include('../login/auth.php');?>
 <?php 	
 	//init
-	$campaign_id = isset($_POST['campaign_id']) ? mysqli_real_escape_string($mysqli, $_POST['campaign_id']) : 0;
+	$campaign_id = isset($_POST['campaign_id']) && is_numeric($_POST['campaign_id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['campaign_id']) : exit;
 	
 	//get send count
 	$q = 'SELECT to_send, recipients FROM campaigns WHERE id = '.$campaign_id;

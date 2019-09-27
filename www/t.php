@@ -34,8 +34,10 @@
 	dbConnect();
 ?>
 <?php 
-	include('includes/helpers/geo/geoip.inc');
 	include('includes/helpers/short.php');
+	include_once('includes/helpers/geo/geolite/geoip.inc');
+	require 'includes/helpers/geo/geolite2/vendor/autoload.php';
+	use GeoIp2\Database\Reader;
 	
 	header("Cache-Control: no-cache, must-revalidate");
 	header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");
@@ -48,8 +50,6 @@
 	$userID = short($i_array[1], true);
 	if(array_key_exists(2, $i_array)) $ares = $i_array[2];
 	else $ares = '';
-	//get user's client
-	$useragent = $_SERVER['HTTP_USER_AGENT'];
 	//get user's ip address & country code
 	if (getenv("HTTP_CLIENT_IP")) {
 		$ip = getenv("HTTP_CLIENT_IP");
@@ -61,9 +61,24 @@
 	$ip_array = explode(',', $ip);
 	if(array_key_exists(1, $ip_array)) $ip = trim($ip_array[0]);
 	
-	$gi = geoip_open("includes/helpers/geo/GeoIP.dat",GEOIP_STANDARD);
-	$country = geoip_country_code_by_addr($gi, $ip);
-	geoip_close($gi);
+	//Get country code
+	if(version_compare(PHP_VERSION, '5.4')==-1)
+	{
+		$gi = geoip_open("includes/helpers/geo/geolite/GeoIP.dat",GEOIP_STANDARD);
+		$country = geoip_country_code_by_addr($gi, $ip);
+		geoip_close($gi);
+	}
+	else
+	{
+		$reader = new Reader('includes/helpers/geo/geolite2/vendor/geoip2/geoip2/maxmind-db/GeoLite2-Country.mmdb');
+		try 
+		{
+			$record = $reader->country($ip);
+			$country = $record->country->isoCode;
+		}
+		catch (Exception $e) { $country = ''; }
+	}
+	
 	$time = time();
 	
 	//if this is an autoresponder email,
@@ -95,8 +110,11 @@
 		$q = 'UPDATE ares_emails SET opens = "'.$val.'" WHERE id = '.$campaign_id;
 	else
 		$q = 'UPDATE campaigns SET opens = "'.$val.'" WHERE id = '.$campaign_id;
-	$r = mysqli_query($mysqli, $q);
-	if ($r){}
+	mysqli_query($mysqli, $q);
+	
+	//Update subscriber's timestamp
+	$q = 'UPDATE subscribers SET timestamp = "'.$time.'" WHERE id = '.$userID;
+	mysqli_query($mysqli, $q);
 	
 	//Just in case this user is set to bounced because Amazon can't deliver it the first time.
 	//If user opens the newsletter, it means user did not bounce, so we set bounced to 0

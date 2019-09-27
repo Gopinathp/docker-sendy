@@ -37,13 +37,28 @@
 <?php
 	include('includes/helpers/short.php');
 	
+	$time = time();
+	
 	//get variable
-	$i = mysqli_real_escape_string($mysqli, $_GET['i']);
-	if($i=='')
-	{
-		exit;
-	}
+	$i = $_GET['i']=='' ? exit : mysqli_real_escape_string($mysqli, $_GET['i']);
+	$i_array = array();
 	$i_array = explode('/', $i);
+	
+	//new encrytped string
+	if((count($i_array)==1 || count($i_array)==2) && !is_numeric(short($i_array[0], true)))
+	{
+		$get = short($i_array[0], true);
+		$get_array = explode('/', $get);
+		$is_ares = $i_array[1]=='a' ? true : false;
+		
+		$i_array = array();
+		$i_array[0] = short($get_array[0]);
+		$i_array[1] = short($get_array[1]);
+		$i_array[2] = short($get_array[2]);
+		$i_array[3] = $is_ares ? 'a' : '';
+	}
+	
+	//Get all data
 	if(count($i_array)==3 || count($i_array)==4)
 	{
 		$subscriber_id = short($i_array[0], true);
@@ -66,27 +81,58 @@
 		else
 			$table = 'campaigns';
 	}
-	else
-		exit;	
+	else exit;
 	
 	//get html text from campaign
 	if($table == 'campaigns') 
-		$q = 'SELECT campaigns.from_email, campaigns.html_text, campaigns.query_string, campaigns.sent, campaigns.send_date, campaigns.opens_tracking, campaigns.links_tracking, login.timezone FROM campaigns, login WHERE campaigns.userID = login.id AND campaigns.id = '.$campaign_id;
+		$q = 'SELECT campaigns.from_email, campaigns.html_text, campaigns.query_string, campaigns.sent, campaigns.send_date, campaigns.opens_tracking, campaigns.links_tracking, login.timezone, campaigns.app FROM campaigns, login WHERE campaigns.userID = login.id AND campaigns.id = '.$campaign_id;
 	else if($table == 'ares_emails') 
-		$q = 'SELECT from_email, html_text, opens_tracking, links_tracking FROM ares_emails WHERE id = '.$campaign_id;
+		$q = 'SELECT ares_id, from_email, html_text, opens_tracking, links_tracking, query_string FROM ares_emails WHERE id = '.$campaign_id;
 	$r = mysqli_query($mysqli, $q);
 	if ($r && mysqli_num_rows($r) > 0)
 	{
 	    while($row = mysqli_fetch_array($r))
 	    {
-			$html = $row['html_text'];
-			$query_string = stripslashes($row['query_string']);
-			$from_email = $row['from_email'];
 			$timezone = isset($row['timezone']) ? $row['timezone'] : '';
-			$sent = $row['sent'];
-			$send_date = $row['send_date'];
+			$sent = isset($row['sent']) ? $row['sent'] : '';
+			$send_date = isset($row['send_date']) ? $row['send_date'] : '';
+			$app = isset($row['app']) ? $row['app'] : '';
+			$ares_id = isset($row['ares_id']) ? $row['ares_id'] : '';
+			$query_string = isset($row['query_string']) ? stripslashes($row['query_string']) : '';
+			$html = $row['html_text'];
+			$from_email = $row['from_email'];
 			$opens_tracking = $row['opens_tracking'];
 			$links_tracking = $row['links_tracking'];
+			
+			if($table == 'ares_emails') 
+			{
+				//Get app id
+				$q2 = 'SELECT app FROM lists WHERE id = '.$subscriber_list;
+				$r2 = mysqli_query($mysqli, $q2);
+				if ($r2) while($row = mysqli_fetch_array($r2)) $app = $row['app'];
+			}
+			
+			//Get custom domain
+			$q2 = 'SELECT custom_domain, custom_domain_protocol, custom_domain_enabled FROM apps WHERE id = '.$app;
+			$r2 = mysqli_query($mysqli, $q2);
+			if ($r2 && mysqli_num_rows($r2) > 0)
+			{
+			    while($row = mysqli_fetch_array($r2))
+			    {
+					$custom_domain = $row['custom_domain'];
+					$custom_domain_protocol = $row['custom_domain_protocol'];
+					$custom_domain_enabled = $row['custom_domain_enabled'];
+					if($custom_domain!='' && $custom_domain_enabled)
+					{
+						$parse = parse_url(APP_PATH);
+						$domain = $parse['host'];
+						$protocol = $parse['scheme'];
+						$app_path = str_replace($domain, $custom_domain, APP_PATH);
+						$app_path = str_replace($protocol, $custom_domain_protocol, $app_path);
+					}
+					else $app_path = APP_PATH;
+			    }  
+			}
 			
 			if($just_show_html)
 			{
@@ -114,21 +160,24 @@
 				//set web version links
 				if($table == 'campaigns') 
 				{
-					$html = str_replace('<webversion', '<a href="'.APP_PATH.'/w/'.short($campaign_id).'" target="_blank"', $html);
+					$html = str_replace('<webversion', '<a href="'.$app_path.'/w/'.short($campaign_id).'" target="_blank"', $html);
 					$html = str_replace('</webversion>', '</a>', $html);
-					$html = str_replace('[webversion]', APP_PATH.'/w/'.short($campaign_id), $html);
+					$html = str_replace('[webversion]', $app_path.'/w/'.short($campaign_id), $html);
 				}
 				else if($table == 'ares_emails')
 				{
-					$html = str_replace('<webversion', '<a href="'.APP_PATH.'/w/'.short($campaign_id).'/a" target="_blank"', $html);
+					$html = str_replace('<webversion', '<a href="'.$app_path.'/w/'.short($campaign_id).'/a" target="_blank"', $html);
 					$html = str_replace('</webversion>', '</a>', $html);
-					$html = str_replace('[webversion]', APP_PATH.'/w/'.short($campaign_id).'/a', $html);
+					$html = str_replace('[webversion]', $app_path.'/w/'.short($campaign_id).'/a', $html);
 				}
 				
 				//set unsubscribe links
-				$html = str_replace('<unsubscribe', '<a href="'.APP_PATH.'/unsubscribe-success.php?c='.$campaign_id.'" target="_blank"', $html);
+				$html = str_replace('<unsubscribe', '<a href="'.$app_path.'/unsubscribe-success.php?c='.$campaign_id.'" target="_blank"', $html);
 				$html = str_replace('</unsubscribe>', '</a>', $html);
-				$html = str_replace('[unsubscribe]', APP_PATH.'/unsubscribe-success.php?c='.$campaign_id, $html);
+				$html = str_replace('[unsubscribe]', $app_path.'/unsubscribe-success.php?c='.$campaign_id, $html);
+				
+				//set reconsent links
+				$html = str_replace('[reconsent]', $app_path.'/reconsent-success?c='.$campaign_id, $html);
 				
 				//convert date tags
 				convert_date_tags();
@@ -138,6 +187,34 @@
 			}
 	    }  
 	}
+	else
+	{
+		echo '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="Shortcut Icon" type="image/ico" href="'.APP_PATH.'/img/favicon.png"><title>'._('Web version no longer exists').'</title></head><style type="text/css">body{background: #ffffff;font-family: Helvetica, Arial;}#wrapper{background: #ffffff; border: 1px solid #ededed; width: 360px;height: 70px;margin: -140px 0 0 -180px;position: absolute;top: 50%;left: 50%;-webkit-border-radius: 5px;-moz-border-radius: 5px;border-radius: 5px;}p{text-align: center;}h2{font-weight: normal;text-align: center;}a{color: #000;}a:hover{text-decoration: none;}#top-pattern{margin-top: -8px;height: 8px;background: url("'.APP_PATH.'/img/top-pattern2.gif") repeat-x 0 0;background-size: auto 8px;}</style><body><div id="top-pattern"></div><div id="wrapper"><h2>'._('Web version no longer exists').'</h2></div></body></html>';
+		exit;
+	}
+	
+	//convert date tags
+	convert_date_tags();
+	
+	//convert date tags
+	function convert_date_tags()
+	{
+		global $timezone;
+		global $html;
+		global $sent;
+		global $send_date;
+		if($timezone!='') date_default_timezone_set($timezone);
+		$today = $sent == '' ? time() : $sent;
+		$today = $send_date !='' && $send_date !=0 ? $send_date : $today;
+		$currentdaynumber = strftime('%d', $today);
+		$currentday = strftime('%A', $today);
+		$currentmonthnumber = strftime('%m', $today);
+		$currentmonth = strftime('%B', $today);
+		$currentyear = strftime('%Y', $today);
+		$unconverted_date = array('[currentdaynumber]', '[currentday]', '[currentmonthnumber]', '[currentmonth]', '[currentyear]');
+		$converted_date = array($currentdaynumber, $currentday, $currentmonthnumber, $currentmonth, $currentyear);
+		$html = str_replace($unconverted_date, $converted_date, $html);
+	}
 	
 	//replace new links on HTML code
 	$links = array();
@@ -146,8 +223,9 @@
 	$matches = array_unique($matches[1]);
 	foreach($matches as $var)
 	{    
-		if($var!="#" && substr($var, 0, 6)!="mailto" && substr($var, 0, 3)!="tel" && substr($var, 0, 3)!="sms")
+		if($var!="#" && substr($var, 0, 6)!="mailto" && substr($var, 0, 3)!="ftp" && substr($var, 0, 3)!="tel" && substr($var, 0, 3)!="sms")
 		{
+			$var = str_replace($unconverted_date, $converted_date, $var);
 	    	array_push($links, $var);
 	    }
 	}
@@ -172,8 +250,8 @@
 	    	else $link = $row2['link'];
 			
 			//replace new links on HTML code
-	    	$html = str_replace('href="'.$link.'"', 'href="'.APP_PATH.'/l/'.short($subscriber_id).'/'.short($linkID).'/'.short($campaign_id).'"', $html);
-	    	$html = str_replace('href=\''.$link.'\'', 'href="'.APP_PATH.'/l/'.short($subscriber_id).'/'.short($linkID).'/'.short($campaign_id).'"', $html);
+	    	$html = str_replace('href="'.$link.'"', 'href="'.$app_path.'/l/'.short($subscriber_id).'/'.short($linkID).'/'.short($campaign_id).'" rel="noreferrer"', $html);
+	    	$html = str_replace('href=\''.$link.'\'', 'href="'.$app_path.'/l/'.short($subscriber_id).'/'.short($linkID).'/'.short($campaign_id).'" rel="noreferrer"', $html);
 	    }  
 	}
 	
@@ -266,45 +344,28 @@
 	//Email tag
 	$html = str_replace('[Email]', $email, $html);
 	
+	$ar = $table=='ares_emails' ? '/a' : '';
+	
 	//set web version links
-	$html = str_replace('<webversion', '<a href="'.APP_PATH.'/w/'.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id).'" ', $html);
+	$html = str_replace('<webversion', '<a href="'.$app_path.'/w/'.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id).$ar.'" ', $html);
 	$html = str_replace('</webversion>', '</a>', $html);
-	$html = str_replace('[webversion]', APP_PATH.'/w/'.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id), $html);
+	$html = str_replace('[webversion]', $app_path.'/w/'.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id).$ar, $html);
 	
 	//set unsubscribe links
-	$html = str_replace('<unsubscribe', '<a href="'.APP_PATH.'/unsubscribe/'.short($email).'/'.short($subscriber_list).'/'.short($campaign_id).'" ', $html);
+	$html = str_replace('<unsubscribe', '<a href="'.$app_path.'/unsubscribe/'.short($email).'/'.short($subscriber_list).'/'.short($campaign_id).$ar.'" ', $html);
 	$html = str_replace('</unsubscribe>', '</a>', $html);
-	$html = str_replace('[unsubscribe]', APP_PATH.'/unsubscribe/'.short($email).'/'.short($subscriber_list).'/'.short($campaign_id), $html);
+	$html = str_replace('[unsubscribe]', $app_path.'/unsubscribe/'.short($email).'/'.short($subscriber_list).'/'.short($campaign_id).$ar, $html);
 	
-	//convert date tags
-	convert_date_tags();
-	
-	//convert date tags
-	function convert_date_tags()
-	{
-		global $timezone;
-		global $html;
-		global $sent;
-		global $send_date;
-		if($timezone!='') date_default_timezone_set($timezone);
-		$today = $sent == '' ? time() : $sent;
-		$today = $send_date !='' && $send_date !=0 ? $send_date : $today;
-		$currentdaynumber = strftime('%d', $today);
-		$currentday = strftime('%A', $today);
-		$currentmonthnumber = strftime('%m', $today);
-		$currentmonth = strftime('%B', $today);
-		$currentyear = strftime('%Y', $today);
-		$unconverted_date = array('[currentdaynumber]', '[currentday]', '[currentmonthnumber]', '[currentmonth]', '[currentyear]');
-		$converted_date = array($currentdaynumber, $currentday, $currentmonthnumber, $currentmonth, $currentyear);
-		$html = str_replace($unconverted_date, $converted_date, $html);
-	}
+	//set reconsent links
+	$html = str_replace('[reconsent]', $app_path.'/r?e='.short($email).'&a='.short($app).'&w='.short($subscriber_id).'/'.short($subscriber_list).'/'.short($campaign_id), $html);
 	
 	//Update click count
 	//if this is an autoresponder web version,
+	$val = '';
 	if(count($i_array)==4 && $i_array[3]=='a')
-		$q = 'SELECT clicks, link FROM links WHERE link = "'.APP_PATH.'/w/'.$i_array[2].'/a"';
+		$q = 'SELECT clicks, link FROM links WHERE link = "'.$app_path.'/w/'.$i_array[2].'/a"';
 	else
-		$q = 'SELECT clicks, link FROM links WHERE link = "'.APP_PATH.'/w/'.$i_array[2].'"';
+		$q = 'SELECT clicks, link FROM links WHERE link = "'.$app_path.'/w/'.$i_array[2].'"';
 	$r = mysqli_query($mysqli, $q);
 	if ($r && mysqli_num_rows($r) > 0)
 	{
@@ -325,17 +386,17 @@
 	//if this is an autoresponder web version,
 	if(count($i_array)==4 && $i_array[3]=='a')
 	{
-		if($links_tracking)
+		if($links_tracking && !empty($val))
 		{
-			$q = 'UPDATE links SET clicks = "'.$val.'" WHERE link = "'.APP_PATH.'/w/'.$i_array[2].'/a"';
+			$q = 'UPDATE links SET clicks = "'.$val.'" WHERE link = "'.$app_path.'/w/'.$i_array[2].'/a"';
 			mysqli_query($mysqli, $q);
 		}
 	}
 	else
 	{
-		if($links_tracking)
+		if($links_tracking && !empty($val))
 		{
-			$q = 'UPDATE links SET clicks = "'.$val.'" WHERE link = "'.APP_PATH.'/w/'.$i_array[2].'"';
+			$q = 'UPDATE links SET clicks = "'.$val.'" WHERE link = "'.$app_path.'/w/'.$i_array[2].'"';
 			mysqli_query($mysqli, $q);
 		}
 	}
@@ -362,11 +423,16 @@
 	{
 		if(count($i_array)==4 && $i_array[3]=='a') 
 			if($opens_tracking) 
-				file_get_contents_curl(APP_PATH.'/t/'.$i_array[2].'/'.$i_array[0].'/a');
+				file_get_contents_curl($app_path.'/t/'.$i_array[2].'/'.$i_array[0].'/a');
 		else 
 			if($opens_tracking) 
-				file_get_contents_curl(APP_PATH.'/t/'.$i_array[2].'/'.$i_array[0]);
+				file_get_contents_curl($app_path.'/t/'.$i_array[2].'/'.$i_array[0]);
 	}
+	
+	//Update subscriber's timestamp
+	$q = 'UPDATE subscribers SET timestamp = "'.$time.'" WHERE id = '.$subscriber_id;
+	mysqli_query($mysqli, $q);
+	
 	function file_get_contents_curl($url) 
 	{
 		$ch = curl_init();

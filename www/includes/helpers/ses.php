@@ -187,6 +187,94 @@ class SimpleEmailService
 		$response['RequestId'] = (string)$rest->body->ResponseMetadata->RequestId;
 		return $response;
 	}
+	
+	/**
+	* Create a custom verification email template that will be sent to the user to verify 
+	* their 'From email' address.
+	*/
+	public function createCustomVerificationEmailTemplate($email, $app_path, $content_title, $content_body) {
+		
+		$template_name = 'SendyVerificationTemplate';
+		$template_subject = 'Please verify your email address';
+		$template_content = "<p><h2><img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAlCAYAAAAwYKuzAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyhpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNi1jMTM4IDc5LjE1OTgyNCwgMjAxNi8wOS8xNC0wMTowOTowMSAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENDIDIwMTcgKE1hY2ludG9zaCkiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6RDc0RDY5RjlGMjgwMTFFN0IzRjNFQzIwRTlGN0UyOTEiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6RDc0RDY5RkFGMjgwMTFFN0IzRjNFQzIwRTlGN0UyOTEiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDpENzRENjlGN0YyODAxMUU3QjNGM0VDMjBFOUY3RTI5MSIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDpENzRENjlGOEYyODAxMUU3QjNGM0VDMjBFOUY3RTI5MSIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PlW/dT4AAAGMSURBVHjaYmYYnEAWiE8CseRgdFw5EP+H4j2DyWEKQHwFyXGHgZhxsDguDclhILx9MIXcKjTHbRwsDpMC4tuD1XHOQPwXzXGbBmt6G1S5tQmL404PFsdNw+K4B0DMNxgctwiL474BsdpgcNxyLI4DYafB4LilOByXMhgctwCH4/oGg+Mm43DcoChOGnE47hUQiwy047JwOA6EXQfacf54HNc00I4zxuO4AwPtOFEgfoHDcb+AWJlSC8KBOB/aDyAHHMETernUCIECJAObSdQ7FY/jdlEzmiqQDH4PxFFE6EnG47h/QKxO7bQ0Bc2S60BsjkOtAR7H/Yd6mCZgIxbLtgCxNJIaFiC+gcdx52idK8/gsLiHiHQHwo60diCoOnqGw/L30HYcLsfNp1fZpoelU0MIfwdiGXoWwF4kOrBmsFX+6H0L1oGqynqIcOCAt5BX4HHc2cHSbTyGw4HBg8WB/ED8EM1xxxkGGdAA4h+DMfSQgQvUcVfoYRkzGXruMUBGPkHtwJO0diBAgAEA2soDsei9CHUAAAAASUVORK5CYII=\" width=\"20\"/> $content_title</h2></p><p>$content_body:</p>";
+		$app_path = substr($app_path, -1)=='/' ? substr($app_path, 0, -1) : $app_path;
+		$success_url = $app_path.'/verification-status?success';
+		$failed_url = $app_path.'/verification-status?failed';
+		
+		$rest = new SimpleEmailServiceRequest($this, 'POST');
+		$rest->setParameter('Action', 'CreateCustomVerificationEmailTemplate');
+		$rest->setParameter('FromEmailAddress', $email);
+		$rest->setParameter('TemplateName', $template_name);
+		$rest->setParameter('TemplateSubject', $template_subject);
+		$rest->setParameter('TemplateContent', stripslashes($template_content));
+		$rest->setParameter('SuccessRedirectionURL', $success_url);
+		$rest->setParameter('FailureRedirectionURL', $failed_url);
+
+		$rest = $rest->getResponse();
+		if($rest->error === false && $rest->code !== 200) {
+			$rest->error = array('code' => $rest->code, 'message' => 'Unexpected HTTP status');
+		}
+		if($rest->error !== false) {
+			$this->__triggerError('CreateCustomVerificationEmailTemplate', $rest->error);
+			return false;
+		}
+
+		$response['RequestId'] = (string)$rest->body->ResponseMetadata->RequestId;
+		return $response;
+	}
+	
+	/**
+	* Delete custom verification email template  
+	*/
+	public function deleteCustomVerificationEmailTemplate($template_name) {		
+		$rest = new SimpleEmailServiceRequest($this, 'POST');
+		$rest->setParameter('Action', 'DeleteCustomVerificationEmailTemplate');
+		$rest->setParameter('TemplateName', $template_name);
+
+		$rest = $rest->getResponse();
+		if($rest->error === false && $rest->code !== 200) {
+			$rest->error = array('code' => $rest->code, 'message' => 'Unexpected HTTP status');
+		}
+		if($rest->error !== false) {
+			$this->__triggerError('DeleteCustomVerificationEmailTemplate', $rest->error);
+			return false;
+		}
+
+		$response['RequestId'] = (string)$rest->body->ResponseMetadata->RequestId;
+		return $response;
+	}
+	
+	/**
+	* Requests verification of the provided email address using a custom template, 
+	* so it can be used as the 'From' address when sending emails through SimpleEmailService.
+	*
+	* After submitting this request, you should receive a verification email
+	* from Amazon at the specified address containing instructions to follow.
+	*
+	* @param string email The email address to get verified
+	* @return The request id for this request.
+	*/
+	public function sendCustomVerificationEmail($email) {
+		
+		$template_name = 'SendyVerificationTemplate';
+		
+		$rest = new SimpleEmailServiceRequest($this, 'POST');
+		$rest->setParameter('Action', 'SendCustomVerificationEmail');
+		$rest->setParameter('EmailAddress', $email);
+		$rest->setParameter('TemplateName', $template_name);
+
+		$rest = $rest->getResponse();
+		if($rest->error === false && $rest->code !== 200) {
+			$rest->error = array('code' => $rest->code, 'message' => 'Unexpected HTTP status');
+		}
+		if($rest->error !== false) {
+			$this->__triggerError('SendCustomVerificationEmail', $rest->error);
+			return false;
+		}
+
+		$response['RequestId'] = (string)$rest->body->ResponseMetadata->RequestId;
+		return $response;
+	}
 
 	/**
 	* Removes the specified email address from the list of verified addresses.
@@ -194,17 +282,17 @@ class SimpleEmailService
 	* @param string email The email address to remove
 	* @return The request id for this request.
 	*/
-	public function deleteVerifiedEmailAddress($email) {
-		$rest = new SimpleEmailServiceRequest($this, 'DELETE');
-		$rest->setParameter('Action', 'DeleteVerifiedEmailAddress');
-		$rest->setParameter('EmailAddress', $email);
+	public function deleteIdentity($email) {
+		$rest = new SimpleEmailServiceRequest($this, 'POST');
+		$rest->setParameter('Action', 'DeleteIdentity');
+		$rest->setParameter('Identity', $email);
 
 		$rest = $rest->getResponse();
 		if($rest->error === false && $rest->code !== 200) {
 			$rest->error = array('code' => $rest->code, 'message' => 'Unexpected HTTP status');
 		}
 		if($rest->error !== false) {
-			$this->__triggerError('deleteVerifiedEmailAddress', $rest->error);
+			$this->__triggerError('DeleteIdentity', $rest->error);
 			return false;
 		}
 

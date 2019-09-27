@@ -23,33 +23,62 @@
 	$smtp_password = mysqli_real_escape_string($mysqli, $_POST['smtp_password']);
 	$language = mysqli_real_escape_string($mysqli, $_POST['language']);
 	$choose_limit = mysqli_real_escape_string($mysqli, $_POST['choose-limit']);
-	$reports = mysqli_real_escape_string($mysqli, $_POST['reports']);
-	if($choose_limit=='custom')
+	$campaigns = isset($_POST['campaigns']) ? 0 : 1;
+	$templates = isset($_POST['templates']) ? 0 : 1;
+	$lists = isset($_POST['lists-subscribers']) ? 0 : 1;
+	$reports = isset($_POST['reports']) ? 0 : 1;
+	$notify_campaign_sent = isset($_POST['notify_campaign_sent']) ? 1 : 0;
+	$campaign_report_rows = is_numeric($_POST['campaign_report_rows']) ? mysqli_real_escape_string($mysqli, (int)$_POST['campaign_report_rows']) : 10;
+	$query_string = mysqli_real_escape_string($mysqli, $_POST['query_string']);
+	$gdpr_only = isset($_POST['gdpr_only']) ? 1 : 0;
+	$gdpr_only_ar = isset($_POST['gdpr_only_ar']) ? 1 : 0;
+	$gdpr_options = isset($_POST['gdpr_options']) ? 1 : 0;
+	$recaptcha_sitekey = mysqli_real_escape_string($mysqli, $_POST['recaptcha_sitekey']);
+	$recaptcha_secretkey = mysqli_real_escape_string($mysqli, $_POST['recaptcha_secretkey']);
+	$test_email_prefix = mysqli_real_escape_string($mysqli, $_POST['test_email_prefix']);
+	$custom_domain_protocol = mysqli_real_escape_string($mysqli, $_POST['protocol']);
+	$custom_domain = mysqli_real_escape_string($mysqli, $_POST['custom_domain']);
+	$custom_domain_enabled = is_numeric($_POST['custom_domain_status']) ? mysqli_real_escape_string($mysqli, (int)$_POST['custom_domain_status']) : 0;
+	$templates_lists_sorting = mysqli_real_escape_string($mysqli, $_POST['sort-by']);
+	
+	if($choose_limit=='custom' || $choose_limit=='no_expiry')
 	{
 		$monthly_limit = mysqli_real_escape_string($mysqli, $_POST['monthly-limit']);
-		$reset_on_day = mysqli_real_escape_string($mysqli, $_POST['reset-on-day']);
 		
-		//Calculate month of next reset
-		$today_unix_timestamp = time();
-		$day_today = strftime("%e", $today_unix_timestamp);
-		$month_today = strftime("%b", $today_unix_timestamp);
-		$month_next = strtotime('1 '.$month_today.' +1 month');
-		$month_next = strftime("%b", $month_next);
-		if($day_today<$reset_on_day) $month_to_reset = $month_today;
-		else $month_to_reset = $month_next;
+		if($choose_limit=='custom')
+		{
+			$reset_on_day = mysqli_real_escape_string($mysqli, $_POST['reset-on-day']);
+			
+			//Calculate month of next reset
+			$today_unix_timestamp = time();
+			$day_today = strftime("%e", $today_unix_timestamp);
+			$month_today = strftime("%b", $today_unix_timestamp);
+			$month_next = strtotime('1 '.$month_today.' +1 month');
+			$month_next = strftime("%b", $month_next);
+			if($day_today<$reset_on_day) $month_to_reset = $month_today;
+			else $month_to_reset = $month_next;
+			$no_expiry = 0;
+		}
+		else if($choose_limit=='no_expiry')
+		{
+			$reset_on_day = 1;
+			$month_to_reset = '';
+			$no_expiry = 1;
+		}
 	}
 	else if($choose_limit=='unlimited')
 	{
 		$monthly_limit = -1;
 		$reset_on_day = 1;
 		$month_to_reset = '';
+		$no_expiry = 0;
 	}
 	
 	//------------------------------------------------------//
 	//                      FUNCTIONS                       //
 	//------------------------------------------------------//
 	
-	$q = 'INSERT INTO apps (userID, app_name, from_name, from_email, reply_to, allowed_attachments, currency, delivery_fee, cost_per_recipient, smtp_host, smtp_port, smtp_ssl, smtp_username, smtp_password, app_key, allocated_quota, day_of_reset, month_of_next_reset, reports_only) VALUES ('.get_app_info('userID').', "'.$app_name.'", "'.$from_name.'", "'.$from_email.'", "'.$reply_to.'", "'.$allowed_attachments.'", "'.$currency.'", "'.$delivery_fee.'", "'.$cost_per_recipient.'", "'.$smtp_host.'", "'.$smtp_port.'", "'.$smtp_ssl.'", "'.$smtp_username.'", "'.$smtp_password.'", "'.ran_string(30, 30, true, false, true).'", '.$monthly_limit.', '.$reset_on_day.', "'.$month_to_reset.'", '.$reports.')';
+	$q = 'INSERT INTO apps (userID, app_name, from_name, from_email, reply_to, allowed_attachments, currency, delivery_fee, cost_per_recipient, smtp_host, smtp_port, smtp_ssl, smtp_username, smtp_password, app_key, allocated_quota, day_of_reset, month_of_next_reset, no_expiry, reports_only, campaigns_only, templates_only, lists_only, notify_campaign_sent, campaign_report_rows, query_string, gdpr_only, gdpr_only_ar, gdpr_options, recaptcha_sitekey, recaptcha_secretkey, test_email_prefix, custom_domain_protocol, custom_domain, custom_domain_enabled, templates_lists_sorting) VALUES ('.get_app_info('userID').', "'.$app_name.'", "'.$from_name.'", "'.$from_email.'", "'.$reply_to.'", "'.$allowed_attachments.'", "'.$currency.'", "'.$delivery_fee.'", "'.$cost_per_recipient.'", "'.$smtp_host.'", "'.$smtp_port.'", "'.$smtp_ssl.'", "'.$smtp_username.'", "'.$smtp_password.'", "'.ran_string(30, 30, true, false, true).'", '.$monthly_limit.', '.$reset_on_day.', "'.$month_to_reset.'", '.$no_expiry.', '.$reports.', '.$campaigns.', '.$templates.', '.$lists.', '.$notify_campaign_sent.', '.$campaign_report_rows.', "'.$query_string.'", '.$gdpr_only.', '.$gdpr_only_ar.', '.$gdpr_options.', "'.$recaptcha_sitekey.'", "'.$recaptcha_secretkey.'", "'.$test_email_prefix.'", "'.$custom_domain_protocol.'", "'.$custom_domain.'", '.$custom_domain_enabled.', "'.$templates_lists_sorting.'")';
 	$r = mysqli_query($mysqli, $q);
 	if ($r)
 	{

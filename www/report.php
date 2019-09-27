@@ -13,6 +13,15 @@
 			echo '<script type="text/javascript">window.location="'.addslashes(get_app_info('path')).'/reports?i='.get_app_info('restricted_to_app').'"</script>';
 			exit;
 		}
+		else if(get_app_info('campaigns_only')==1 && get_app_info('templates_only')==1 && get_app_info('lists_only')==1 && get_app_info('reports_only')==1)
+		{
+			go_to_next_allowed_section();
+		}
+		else if(get_app_info('reports_only')==1)
+		{
+			echo '<script type="text/javascript">window.location="'.addslashes(get_app_info('path')).'/app?i='.get_app_info('restricted_to_app').'"</script>';
+			exit;
+		}
 		$q = 'SELECT app FROM campaigns WHERE id = '.$cid;
 		$r = mysqli_query($mysqli, $q);
 		if ($r)
@@ -124,7 +133,7 @@
     $(document).ready(function() {
     	
     	Highcharts.setOptions({
-	        colors: ['#1F1F1F', '#1F1F1F', '#B94A48', '#3A87AD', '#F89406', '#468847', '#999999']
+	        colors: ['#1F1F1F', '#1F1F1F', '#ce5c56', '#579fc8', '#eeca46', '#70bd6c', '#999999']
 	    });
     	
         chart = new Highcharts.Chart({
@@ -215,10 +224,17 @@
     </div> 
     <div class="span10">
     	<div>
-	    	<p class="lead"><?php echo get_app_data('app_name');?></p>
+	    	<p class="lead">
+		    	<?php if(get_app_info('is_sub_user')):?>
+			    	<?php echo get_app_data('app_name');?>
+		    	<?php else:?>
+			    	<a href="<?php echo get_app_info('path'); ?>/edit-brand?i=<?php echo get_app_info('app');?>" data-placement="right" title="<?php echo _('Edit brand settings');?>"><?php echo get_app_data('app_name');?></a>
+		    	<?php endif;?>
+		    </p>
     	</div>
     	<h2><?php echo _('Campaign report');?></h2><br/>
     	
+    	<?php if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('campaigns_only')==0)):?>
     	<span>
     		<?php echo _('Title');?>: 
     		<a href="javascript:void(0);" id="edit-campaign-title" title="<?php echo _('Click to edit this campaign\'s title for your own reference');?>"><?php echo get_saved_data('label')=='' ? _('Not set') : get_saved_data('label');?> <span class="icon icon-pencil"></span></a>
@@ -262,9 +278,14 @@
 	    		});
     		</script>
     	</span>
+    	<?php endif;?>
+    	
     	<h3><?php echo _('Subject');?>: <?php echo get_saved_data('title');?> <a href="<?php echo get_app_info('path');?>/w/<?php echo short($id);?>" title="<?php echo _('View the campaign');?>" class="iframe-preview"><span class="icon-eye-open"></span></a></h3><br/>
     	<p><em><?php echo _('Sent on');?> <?php echo parse_date(get_saved_data('sent'), 'long', false)?> <?php echo _('to');?> <span class="label"><?php echo number_format(get_saved_data('recipients'));?> <?php echo _('subscribers');?></span></em></p>
-    	<p><em><?php echo _('Lists');?>: <?php echo get_lists();?></em></p><br/>
+    	<p><em><?php echo _('To');?>: <?php echo get_lists();?></em></p>
+    	<?php if(get_saved_data('lists_excl')!='' || get_saved_data('segs_excl')!=''):?>
+    	<p><em><?php echo _('Excluded');?>: <?php echo get_excluded_lists();?></em></p><br/>
+    	<?php endif;?>
     	
     	<div class="row-fluid">
     		<div class="span4">
@@ -280,7 +301,13 @@
 	    	<div class="span6">
 	    		<div class="well">
 			    	<h3><?php if($opens_tracking): ?><span class="badge badge-success" style="font-size:16px;"><?php echo $percentage_opened;?>%</span> <?php echo _('opened');?> <span class="label"><?php echo $opens_unique;?> <?php echo _('unique');?> / <?php echo _('opened');?> <?php echo $opens_all;?> <?php echo _('times');?></span><?php else: ?><span class="badge" style="font-size:16px;"><?php echo _('Tracking disabled for opens');?></span><?php endif;?></h3><br/>
-			    	<h3 style="float:left;"><?php if($opens_tracking): ?><span class="badge badge-warning" style="font-size:16px;"><?php echo $recipients - $opens_unique;?></span> <?php echo _('not opened');?> <?php else: ?><span class="badge" style="font-size:16px;"><?php echo _('Tracking disabled for opens');?></span><?php endif;?></h3> <?php if($opens_tracking): ?><a href="<?php echo get_app_info('path');?>/includes/reports/export-csv.php?c=<?php echo $id?>&a=unopens" title="<?php echo _('Export a CSV of ALL subscribers who did not open this email (includes subscribers newly added to the lists after this campaign was sent)');?>" style="float:left; margin: 5px 0 0 7px;"><i class="icon icon-download-alt"></i></a><?php endif;?><br/>
+			    	<h3 style="float:left;"><?php if($opens_tracking): ?><span class="badge badge-warning" style="font-size:16px;"><?php echo $recipients - $opens_unique;?></span> <?php echo _('not opened');?> <?php else: ?><span class="badge" style="font-size:16px;"><?php echo _('Tracking disabled for opens');?></span><?php endif;?></h3> 
+			    	<?php if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0)):?>
+				    	<?php if($opens_tracking && is_last_campaign(get_app_info('app'), $cid)): ?>
+				    		<a href="<?php echo get_app_info('path');?>/includes/reports/export-csv.php?c=<?php echo $id?>&a=unopens" title="<?php echo _('Export a CSV of ALL subscribers who did not open this email (includes subscribers newly added to the lists after this campaign was sent)');?>" style="float:left; margin: 5px 0 0 7px;"><i class="icon icon-download-alt"></i></a>
+				    	<?php endif;?>
+				    <?php endif;?>
+			    	<br/>
 			    	<h3 style="clear:both;margin-top: 27px;"><?php if($links_tracking): ?><span class="badge badge-info" style="font-size:16px;"><?php echo $click_per;?>%</span> <?php echo _('clicked a link');?> <span class="label"><?php echo get_click_percentage($cid);?> <?php echo _('unique clicks');?></span><?php else: ?><span class="badge" style="font-size: 16px;"><?php echo _('Tracking disabled for clicks');?></span><?php endif;?></h3>
 			    </div>
 	    	</div>
@@ -301,8 +328,10 @@
 	    <div class="row-fluid">
 	    	<div class="span12">
 		    	<h2 class="report-titles"><?php echo _('Link activity');?></h2>
-		    	<?php if($links_tracking): ?>
-			    	<a href="<?php echo get_app_info('path');?>/includes/reports/export-csv.php?c=<?php echo $id?>&a=clicks" title="<?php echo _('Export a CSV of ALL subscribers who clicked');?>" class="report-export"><i class="icon icon-download-alt"></i></a>
+		    	<?php if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0)):?>
+			    	<?php if($links_tracking): ?>
+				    	<a href="<?php echo get_app_info('path');?>/includes/reports/export-csv.php?c=<?php echo $id?>&a=clicks" title="<?php echo _('Export a CSV of ALL subscribers who clicked');?>" class="report-export"><i class="icon icon-download-alt"></i></a>
+			    	<?php endif;?>
 		    	<?php endif;?>
 	    	</div>
 	    </div>
@@ -314,7 +343,9 @@
 			      <th><?php echo _('Link (URL)');?></th>
 			      <th><?php echo _('Unique');?></th>
 			      <th><?php echo _('Total');?></th>
-			      <th><?php echo _('Export');?></th>
+			      <?php if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0)):?>
+				      <th><?php echo _('Export');?></th>
+				  <?php endif;?>
 			    </tr>
 			  </thead>
 			  <tbody>
@@ -328,6 +359,7 @@
 				  	    {
 				  			$link_id = stripslashes($row['id']);
 				  			$link = stripslashes($row['link']);
+				  			$link_trunc = strlen($link) > 100 ? substr($link, 0, 100).'...' : $link;
 				  			$clicks = stripslashes($row['clicks']);
 				  			
 				  			if($clicks==NULL)
@@ -345,10 +377,16 @@
 				  			echo '
 				  			
 				  			<tr>
-						      <td><a href="'.$link.'" target="_blank">'.$link.'</a></td>
+						      <td><a href="'.$link.'" target="_blank">'.$link_trunc.'</a></td>
 						      <td>'.$unique_clicks.'</td>
 						      <td>'.$total_clicks.'</td>
-						      <td><a href="'.get_app_info('path').'/includes/reports/export-csv.php?c='.$id.'&l='.$link_id.'&a=recipient_clicks" title="'._('Export a CSV of ALL subscribers who clicked this link').'" class="recipient-click-export"><i class="icon icon-download-alt"></i></a></td>
+						      '; 
+						    
+						    if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0))  
+						    echo'
+						      <td><a href="'.get_app_info('path').'/includes/reports/export-csv.php?c='.$id.'&l='.$link_id.'&a=recipient_clicks" title="'._('Export a CSV of ALL subscribers who clicked this link').'" class="recipient-click-export"><i class="icon icon-download-alt"></i></a></td>'; 
+						    
+						    echo '
 						    </tr>				  			
 				  			';
 				  	    }  
@@ -378,9 +416,11 @@
 	    	<div class="span12">
 		    	<h2 class="report-titles"><?php echo _('Last 10 opened');?></h2>
 		    	
-		    	<?php if($opens_tracking): ?>
-			    	<a href="<?php echo get_app_info('path');?>/includes/reports/export-csv.php?c=<?php echo $id?>&a=opens" title="<?php echo _('Export a CSV of ALL subscribers who opened');?>" class="report-export"><i class="icon icon-download-alt"></i></a>
-			    <?php endif;?>
+		    	<?php if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0)):?>
+			    	<?php if($opens_tracking): ?>
+				    	<a href="<?php echo get_app_info('path');?>/includes/reports/export-csv.php?c=<?php echo $id?>&a=opens" title="<?php echo _('Export a CSV of ALL subscribers who opened');?>" class="report-export"><i class="icon icon-download-alt"></i></a>
+				    <?php endif;?>
+				<?php endif;?>
 	    	</div>
 	    </div>
 	    <br/>
@@ -463,21 +503,21 @@
 							  			    }  
 							  			}
 					  					
-					  					if(get_app_info('reports_only'))
+					  					if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0))
 					  						echo '
-								  			<tr>
-										      <td>'.$name.'</td>
-										      <td>'.$email.'</td>
-										      <td>'.$list_name.'</td>
-										      <td>'.$unsubscribed.'</td>
-										    </tr>
-								  			';
-					  					else
-						  					echo '
 								  			<tr>
 										      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$name.'</a></td>
 										      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$email.'</a></td>
 										      <td><a href="'.get_app_info('path').'/subscribers?i='.get_app_info('app').'&l='.$listID.'" title="">'.$list_name.'</a></td>
+										      <td>'.$unsubscribed.'</td>
+										    </tr>
+								  			';
+								  		else
+								  			echo '
+								  			<tr>
+										      <td>'.$name.'</td>
+										      <td>'.$email.'</td>
+										      <td>'.$list_name.'</td>
 										      <td>'.$unsubscribed.'</td>
 										    </tr>
 								  			';
@@ -510,7 +550,9 @@
 	    <div class="row-fluid">
 	    	<div class="span12">
 		    	<h2 class="report-titles"><?php echo _('Last 10 unsubscribed');?></h2>
+		    	<?php if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0)):?>
 		    	<a href="<?php echo get_app_info('path');?>/includes/reports/export-csv.php?c=<?php echo $id?>&a=unsubscribes" title="<?php echo _('Export a CSV of ALL subscribers who unsubscribed');?>" class="report-export"><i class="icon icon-download-alt"></i></a>
+		    	<?php endif;?>
 	    	</div>
 	    </div>
 	    <br/>
@@ -554,12 +596,12 @@
 				  			    }  
 				  			}
 				  			
-				  			if(get_app_info('reports_only'))
+				  			if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0))
 				  				echo '
 					  			<tr>
-							      <td>'.$name.'</td>
-							      <td>'.$email.'</td>
-							      <td>'.$list_name.'</td>
+							      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$name.'</a></td>
+							      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$email.'</a></td>
+							      <td><a href="'.get_app_info('path').'/subscribers?i='.get_app_info('app').'&l='.$listID.'" title="">'.$list_name.'</a></td>
 							      <td><span class="label label-important">'._('Unsubscribed').'</span></td>
 							      <td>'.$timestamp.'</td>
 							    </tr>
@@ -567,9 +609,9 @@
 				  			else
 					  			echo '
 					  			<tr>
-							      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$name.'</a></td>
-							      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$email.'</a></td>
-							      <td><a href="'.get_app_info('path').'/subscribers?i='.get_app_info('app').'&l='.$listID.'" title="">'.$list_name.'</a></td>
+							      <td>'.$name.'</td>
+							      <td>'.$email.'</td>
+							      <td>'.$list_name.'</td>
 							      <td><span class="label label-important">'._('Unsubscribed').'</span></td>
 							      <td>'.$timestamp.'</td>
 							    </tr>
@@ -601,7 +643,9 @@
 	    <div class="row-fluid">
 	    	<div class="span12">
 		    	<h2 class="report-titles"><?php echo _('Last 10 bounced emails');?></h2>
+		    	<?php if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0)):?>
 		    	<a href="<?php echo get_app_info('path');?>/includes/reports/export-csv.php?c=<?php echo $id?>&a=bounces" title="<?php echo _('Export a CSV of ALL subscribers who bounced');?>" class="report-export"><i class="icon icon-download-alt"></i></a>
+		    	<?php endif;?>
 	    	</div>
 	    </div>
 	    <br/>
@@ -644,12 +688,12 @@
 				  			    }  
 				  			}
 				  			
-				  			if(get_app_info('reports_only'))
+				  			if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0))
 				  				echo '
 					  			<tr>
-							      <td>'.$name.'</td>
-							      <td>'.$email.'</td>
-							      <td>'.$list_name.'</td>
+							      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$name.'</a></td>
+							      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$email.'</a></td>
+							      <td><a href="'.get_app_info('path').'/subscribers?i='.get_app_info('app').'&l='.$listID.'" title="">'.$list_name.'</a></td>
 							      <td><span class="label label-inverse">'._('Bounced').'</span></td>
 							      <td>'.$timestamp.'</td>
 							    </tr>
@@ -657,9 +701,9 @@
 				  			else
 					  			echo '
 					  			<tr>
-							      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$name.'</a></td>
-							      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$email.'</a></td>
-							      <td><a href="'.get_app_info('path').'/subscribers?i='.get_app_info('app').'&l='.$listID.'" title="">'.$list_name.'</a></td>
+							      <td>'.$name.'</td>
+							      <td>'.$email.'</td>
+							      <td>'.$list_name.'</td>
 							      <td><span class="label label-inverse">'._('Bounced').'</span></td>
 							      <td>'.$timestamp.'</td>
 							    </tr>
@@ -694,7 +738,9 @@
 	    <div class="row-fluid">
 	    	<div class="span12">
 		    	<h2 class="report-titles"><?php echo _('Last 10 marked as spam');?></h2>
+		    	<?php if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0)):?>
 		    	<a href="<?php echo get_app_info('path');?>/includes/reports/export-csv.php?c=<?php echo $id?>&a=complaints" title="<?php echo _('Export a CSV of ALL subscribers who marked your email as spam');?>" class="report-export"><i class="icon icon-download-alt"></i></a>
+		    	<?php endif;?>
 	    	</div>
 	    </div>
 	    <br/>
@@ -737,22 +783,22 @@
 				  			    }  
 				  			}
 				  			
-				  			if(get_app_info('reports_only'))
+				  			if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0))
 				  				echo '
 					  			<tr>
-							      <td>'.$name.'</td>
-							      <td>'.$email.'</td>
-							      <td>'.$list_name.'</td>
+							      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$name.'</a></td>
+							      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$email.'</a></td>
+							      <td><a href="'.get_app_info('path').'/subscribers?i='.get_app_info('app').'&l='.$listID.'" title="">'.$list_name.'</a></td>
 							      <td><span class="label label-inverse">'._('Marked as spam').'</span></td>
 							      <td>'.$timestamp.'</td>
 							    </tr>
 					  			';
 				  			else
-					  			echo '
+				  				echo '
 					  			<tr>
-							      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$name.'</a></td>
-							      <td><a href="#subscriber-info" data-id="'.$subscriber_id.'" data-toggle="modal" class="subscriber-info">'.$email.'</a></td>
-							      <td><a href="'.get_app_info('path').'/subscribers?i='.get_app_info('app').'&l='.$listID.'" title="">'.$list_name.'</a></td>
+							      <td>'.$name.'</td>
+							      <td>'.$email.'</td>
+							      <td>'.$list_name.'</td>
 							      <td><span class="label label-inverse">'._('Marked as spam').'</span></td>
 							      <td>'.$timestamp.'</td>
 							    </tr>
@@ -792,7 +838,9 @@
 				    <tr>
 				      <th><?php echo _('Country');?></th>
 				      <th><?php echo _('Opens');?></th>
-				      <th><?php echo _('Export');?></th>
+				      <?php if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0)):?>
+					      <th><?php echo _('Export');?></th>
+				      <?php endif;?>
 				    </tr>
 				  </thead>
 				  <tbody>
@@ -855,9 +903,12 @@
 						  			echo '
 						  			<tr>
 						  				<td>'.$cc[1].'</td>
-						  				<td>'.$cc[0].'</td>
-						  				<td><a href="'.get_app_info('path').'/includes/reports/export-csv.php?c='.$id.'&a='.$cc[2].'" title="'._('Export a CSV of ALL subscribers from').' '.$cc[1].'"><i class="icon icon-download-alt"></i></a></td>
-						  			</tr>
+						  				<td>'.$cc[0].'</td>';
+						  			
+						  			if(!get_app_info('is_sub_user') || (get_app_info('is_sub_user') && get_app_info('lists_only')==0))
+						  			echo '<td><a href="'.get_app_info('path').'/includes/reports/export-csv.php?c='.$id.'&a='.$cc[2].'" title="'._('Export a CSV of ALL subscribers from').' '.$cc[1].'"><i class="icon icon-download-alt"></i></a></td>';
+						  			
+						  			echo '</tr>
 						  			';
 					  			}
 					  			
@@ -865,6 +916,11 @@
 		  			<script type="text/javascript">
 		  				var chart2;
 						$(document).ready(function() {
+							
+							Highcharts.setOptions({
+						        colors: ['<?php echo count($country_count_array)==0 ? '#e3e5e7' : '#579fc8';?>', '#ce5c56', '#70bd6c', '#eeca46']
+						    });
+							
 							chart2 = new Highcharts.Chart({
 								chart: {
 									renderTo: 'countries-container',
@@ -907,30 +963,39 @@
 									data: [
 										<?php 
 											$ct = 0;
-											foreach($country_count_array as $cca)
-								  			{
-								  				if($ct<10)
-								  				{
-									  				$cc = explode('%',$cca);
-									  				
-									  				if($ct==0)
+											if(count($country_count_array)==0)
+											{
+												echo '
+									  			[\'No countries detected\',   100],
+									  			';
+											}
+											else
+											{
+												foreach($country_count_array as $cca)
+									  			{
+									  				if($ct<10)
 									  				{
-										  				echo '{
-															name: "'.$cc[1].'",
-															y: '.$cc[0].',
-															sliced: true,
-															selected: true
-														},';
-									  				}
-									  				else
-									  				{
-											  			echo '
-											  			[\''.$cc[1].'\',   '.$cc[0].'],
-											  			';
+										  				$cc = explode('%',$cca);
+										  				
+										  				if($ct==0)
+										  				{
+											  				echo '{
+																name: "'.$cc[1].'",
+																y: '.$cc[0].',
+																sliced: true,
+																selected: true
+															},';
+										  				}
+										  				else
+										  				{
+												  			echo '
+												  			[\''.addslashes($cc[1]).'\',   '.$cc[0].'],
+												  			';
+												  		}
 											  		}
+											  		$ct++;
 										  		}
-										  		$ct++;
-									  		}
+										  	}
 										?>
 									]
 								}],

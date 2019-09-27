@@ -36,6 +36,18 @@ Limitation of Liability.
 
 YOU EXPRESSLY UNDERSTAND AND AGREE THAT THE AUTHOR SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL OR EXEMPLARY DAMAGES, INCLUDING BUT NOT LIMITED TO, DAMAGES FOR LOSS OF PROFITS, GOODWILL, USE, DATA OR OTHER INTANGIBLE LOSSES (EVEN IF THE AUTHOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES). SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OF THE LIMITATION OR EXCLUSION OF LIABILITY FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES. ACCORDINGLY, SOME OF THE ABOVE LIMITATIONS MAY NOT APPLY TO YOU. IN NO EVENT WILL THE AUTHORS'S TOTAL CUMULATIVE DAMAGES EXCEED THE FEES YOU PAID TO THE AUTHOR UNDER THIS AGREEMENT IN THE MOST RECENT TWELVE-MONTH PERIOD.
 
+Refunds
+
+Refunds will only be granted within 60 days of purchase. Refunds can no longer be issued if the request is made after 60 days of purchase.
+
+Updates and Upgrades
+
+Updates are free up till the next major Upgrade of Sendy. A fee, at a fraction of the original cost of Sendy, may be chargeable in order to download and use the latest major Upgrade of Sendy.
+
+Change of Licensed Domain
+
+You can change or transfer your Licensed Domain to another domain at any time for any reason other than for the intention of avoiding paying licensing fees for additional installations of the Software on additional domains. In which case the Author reserves all rights to refuse the change of the Licensed Domain.
+
 Definitions
 
 Definition of Website
@@ -57,3 +69,7 @@ Definition of an Upgrade
 An "Upgrade" is a major release of the Software and is defined as that which incorporates major new features or enhancement that increase the core functionality of the software. This class of release is identified by the change of the revision to the left of the decimal point, i.e. 4.X to 5.X
 
 The assignment to the category of Update or Upgrade shall be at the sole discretion of the Author.
+
+Definition of Licensed Domain
+
+The "Licensed Domain" is defined as a single top level or sub domain in which the Software license is associated with.

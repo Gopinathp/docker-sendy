@@ -6,7 +6,7 @@
 	//------------------------------------------------------//
 	
 	$edit = isset($_GET['edit']) ? $_GET['edit'] : '';
-	$campaign_id = isset($_GET['c']) ? mysqli_real_escape_string($mysqli, $_GET['c']) : '';	
+	$campaign_id = isset($_GET['c']) && is_numeric($_GET['c']) ? mysqli_real_escape_string($mysqli, (int)$_GET['c']) : '';
 	$campaign_title = addslashes(mysqli_real_escape_string($mysqli, $_POST['campaign_title']));
 	$subject = addslashes(mysqli_real_escape_string($mysqli, $_POST['subject']));
 	$from_name = mysqli_real_escape_string($mysqli, $_POST['from_name']);
@@ -18,7 +18,7 @@
 	if(trim($html)=='<html><head></head><body></body></html>') $html = '';
 	$filename = $_FILES['attachments']['name'];	
 	$file = $_FILES['attachments']['tmp_name'];	
-	$wysiwyg = isset($_POST['wysiwyg']) ? mysqli_real_escape_string($mysqli, $_POST['wysiwyg']) : 1;
+	$wysiwyg = isset($_POST['wysiwyg']) && is_numeric($_POST['wysiwyg']) ? mysqli_real_escape_string($mysqli, (int)$_POST['wysiwyg']) : 1;
 	$w_clicked = isset($_POST['w_clicked']) ? $_POST['w_clicked'] : null;
 	$track_opens = isset($_POST['opens']) ? $_POST['opens'] : 1;
 	$track_clicks = isset($_POST['clicks']) ? $_POST['clicks'] : 1;
@@ -73,7 +73,7 @@
 		}
 		else
 		{
-			show_error(_('Unable to save campaign'), '<p>'._('Please ensure you have granted FULL privileges to your MySQL user for your database.').'</p><p>Or check <a href="https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next">https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next</a> as you may have "mod_security" enabled on your server.</p>');
+			show_error(_('Unable to save campaign'), '<p>'.mysqli_error($mysqli).'</p><p>Or check <a href="https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next">https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next</a> as you may have "mod_security" enabled on your server.</p>');
 			exit;
 		}
 	}
@@ -122,7 +122,7 @@
 		}
 		else
 		{
-			show_error(_('Unable to create campaign'), '<p>'._('Please ensure you have granted FULL privileges to your MySQL user for your database.').'</p><p>Or check <a href="https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next">https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next</a> as you may have "mod_security" enabled on your server.</p>');
+			show_error(_('Unable to create campaign'), '<p>'.mysqli_error($mysqli).'</p><p>Or check <a href="https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next">https://sendy.co/troubleshooting#403-forbidden-error-when-clicking-save-and-next</a> as you may have "mod_security" enabled on your server.</p>');
 			exit;
 		}
 	}

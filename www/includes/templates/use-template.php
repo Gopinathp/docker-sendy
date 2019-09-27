@@ -35,7 +35,7 @@
 	//------------------------------------------------------//
 	
 	//Get brand info
-	$q = 'SELECT app_name, from_name, from_email, reply_to FROM apps WHERE id = '.$aid;
+	$q = 'SELECT app_name, from_name, from_email, reply_to, query_string FROM apps WHERE id = '.$aid;
 	$r = mysqli_query($mysqli, $q);
 	if ($r && mysqli_num_rows($r) > 0)
 	{
@@ -45,6 +45,7 @@
 			$from_name = $row['from_name'];
 			$from_email = $row['from_email'];
 			$reply_to = $row['reply_to'];
+			$query_string = $row['query_string'];
 	    }  
 	}
 	
@@ -61,7 +62,7 @@
 	}
 	
 	//Create new campaign with template
-	$q = 'INSERT INTO campaigns (userID, app, from_name, from_email, reply_to, title, html_text, wysiwyg) VALUES ('.get_app_info('main_userID').', '.$aid.', "'.$from_name.'", "'.$from_email.'", "'.$reply_to.'", "'.$template_name.'", "'.addslashes($html_text).'", 1)';
+	$q = 'INSERT INTO campaigns (userID, app, from_name, from_email, reply_to, query_string, title, html_text, wysiwyg) VALUES ('.get_app_info('main_userID').', '.$aid.', "'.$from_name.'", "'.$from_email.'", "'.$reply_to.'", "'.$query_string.'", "'.$template_name.'", "'.addslashes($html_text).'", 1)';
 	$r = mysqli_query($mysqli, $q);
 	if ($r)
 	{

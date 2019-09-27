@@ -39,13 +39,13 @@
 	include_once('includes/helpers/short.php');
 	
 	//init
-	$i = isset($_GET['i']) ? mysqli_real_escape_string($mysqli, $_GET['i']) : '';
+	$i = is_numeric($_GET['i']) ? $_GET['i'] : exit;
 	$a = isset($_GET['a']) ? mysqli_real_escape_string($mysqli, $_GET['a']) : '';
 	if($i=='') exit;
 	if($a=='') exit;
 	
 	//Get brand name
-	$q = "SELECT app_key, app_name FROM apps WHERE id = '$i'";
+	$q = "SELECT app_key, app_name, custom_domain, custom_domain_protocol, custom_domain_enabled FROM apps WHERE id = '$i'";
 	$r = mysqli_query($mysqli, $q);
 	if ($r && mysqli_num_rows($r) > 0) 
 	{
@@ -53,6 +53,18 @@
 		{
 			$app_key = $row['app_key'];
 			$brand_name = $row['app_name'];
+			$custom_domain = $row['custom_domain'];
+			$custom_domain_protocol = $row['custom_domain_protocol'];
+			$custom_domain_enabled = $row['custom_domain_enabled'];
+			if($custom_domain!='' && $custom_domain_enabled)
+			{
+				$parse = parse_url(APP_PATH);
+				$domain = $parse['host'];
+				$protocol = $parse['scheme'];
+				$app_path = str_replace($domain, $custom_domain, APP_PATH);
+				$app_path = str_replace($protocol, $custom_domain_protocol, $app_path);
+			}
+			else $app_path = APP_PATH;
 		}
 	}
 	
@@ -73,6 +85,7 @@
 		global $brand_name;
 		global $a;
 		global $i;
+		global $app_path;
 		
 		$details = '<?xml version="1.0" encoding="utf-8"?>
 					<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
@@ -82,7 +95,7 @@
 					<language>en</language>
 				    <copyright></copyright>
 				    <webMaster></webMaster>
-				    <atom:link href="'.APP_PATH.'" rel="self" type="application/rss+xml"/>
+				    <atom:link href="'.$app_path.'" rel="self" type="application/rss+xml"/>
 					';
 		return $details;
 	}
@@ -91,6 +104,7 @@
 	{
 		global $i;
 		global $mysqli;
+		global $app_path;
 		
 		$items = '';
 		
@@ -109,7 +123,7 @@
 		            ENT_QUOTES,
 		            'UTF-8'
 		        );
-				$html_text = substr(preg_replace("/\s+/", ' ', $h2t), 0, 500).'... <a href="'.APP_PATH.'/w/'.short($campaign_id).'">Read more</a>';
+				$html_text = substr(preg_replace("/\s+/", ' ', $h2t), 0, 500).'... <a href="'.$app_path.'/w/'.short($campaign_id).'">Read more</a>';
 				
 				//tags for subject
 				preg_match_all('/\[([a-zA-Z0-9!#%^&*()+=$@._\-\:|\/?<>~`"\'\s]+),\s*fallback=/i', $title, $matches_var, PREG_PATTERN_ORDER);
@@ -166,7 +180,7 @@
 								
 				$items .= '<item>
 					<title>'.$title.'</title>
-					<link>'.APP_PATH.'/w/'.short($campaign_id).'</link>
+					<link>'.$app_path.'/w/'.short($campaign_id).'</link>
 					<description><![CDATA['.$html_text.']]></description>
 					<pubDate>'.$date.'</pubDate>
 					</item>

@@ -1,6 +1,7 @@
 <?php include('includes/header.php');?>
 <?php include('includes/login/auth.php');?>
 <?php include('includes/create/main.php');?>
+<?php include('js/create/editor.php');?>
 <?php
 	if(get_app_info('is_sub_user')) 
 	{
@@ -13,7 +14,6 @@
 ?>
 
 <script src="<?php echo get_app_info('path');?>/js/ckeditor/ckeditor.js?7"></script>
-<script src="<?php echo get_app_info('path');?>/js/create/editor.js?8"></script>
 
 <!-- Validation -->
 <script type="text/javascript" src="<?php echo get_app_info('path');?>/js/validate.js"></script>
@@ -50,6 +50,8 @@
 		
 		//Check if Grammarly extension is installed in the browser, if so, inform the user
 		setTimeout(	function()	{if($("grammarly-btn").length) $("#grammarly-error").slideDown();}, 5000);
+		
+		$("#subject").focus();
 	});
 </script>
 
@@ -60,9 +62,15 @@
     <div class="span10">
     	<div class="row-fluid">
 	    	<div>
-		    	<p class="lead"><?php echo get_app_data('app_name');?></p>
+		    	<p class="lead">
+		    	<?php if(get_app_info('is_sub_user')):?>
+			    	<?php echo get_app_data('app_name');?>
+		    	<?php else:?>
+			    	<a href="<?php echo get_app_info('path'); ?>/edit-brand?i=<?php echo get_app_info('app');?>" data-placement="right" title="<?php echo _('Edit brand settings');?>"><?php echo get_app_data('app_name');?></a>
+		    	<?php endif;?>
+		    </p>
 	    	</div>
-	    	<h2><?php echo _('Create new campaign');?></h2><br/>
+	    	<h2><?php echo _('New campaign');?></h2><br/>
     	</div>
     	<div class="row-fluid">
     		<form action="<?php echo get_app_info('path')?>/includes/create/save-campaign.php?i=<?php echo get_app_info('app')?>" method="POST" accept-charset="utf-8" class="form-vertical" id="edit-form" enctype="multipart/form-data">
@@ -108,10 +116,11 @@
 			            </div>
 			        </div>
 			        
-			        <a href="javascript:void(0);" id="set-campaign-title-btn"><?php echo _('Set a title for this campaign?');?></a> <a href="javascript:void(0)" title="<?php echo _('This title (instead of the subject line) will be displayed in your campaigns list and reports. You can also set the title later in the campaign report after sending this campaign.');?>" class="icon icon-info-sign" id="set-campaign-title-btn-info"></a>
+			        <a href="javascript:void(0);" id="set-campaign-title-btn"><?php echo _('Set a title for this campaign?');?></a> 
+			        <a href="javascript:void(0)" title="<?php echo _('This title (instead of the subject line) will be displayed in your campaigns list and reports. You can also set the title later in the campaign report after sending this campaign.');?>" class="icon icon-info-sign" id="set-campaign-title-btn-info"></a>
 					<script type="text/javascript">
 					  $(document).ready(function() {
-					  	$("#set-campaign-title-btn").click(function(){
+					  	$("#set-campaign-title-btn, #set-campaign-title-btn-info").click(function(){
 					      	$(this).fadeOut();
 					      	$("#set-campaign-title-btn-info").fadeOut();
 					      	$("#campaign-title-field").slideDown("fast");
@@ -138,14 +147,20 @@
 			        <label class="control-label" for="from_email"><?php echo _('From email');?></label>
 			    	<div class="control-group">
 				    	<div class="controls">
-			              <input type="text" class="input-xlarge" <?php if(get_app_info('is_sub_user')) echo 'readonly="readonly"';?> id="from_email" name="from_email" placeholder="<?php echo _('From email');?>" value="<?php echo get_app_data('from_email');?>">
+					      <?php 
+						      //Get main user's login email address
+						      $q = 'SELECT username FROM login WHERE id = '.get_app_info('main_userID');
+						      $r = mysqli_query($mysqli, $q);
+						      if ($r) while($row = mysqli_fetch_array($r)) $main_email = $row['username'];
+					      ?>
+			              <input type="text" class="input-xlarge" <?php if(get_app_info('is_sub_user') && verify_identity($main_email)!='verified' && get_app_info('s3_key')!='' && get_app_info('s3_secret')!='') echo 'readonly="readonly"';?> id="from_email" name="from_email" placeholder="<?php echo _('name@domain.com');?>" value="<?php echo get_app_data('from_email');?>">
 			            </div>
 			        </div>
 			        
 			        <label class="control-label" for="reply_to"><?php echo _('Reply to email');?></label>
 			    	<div class="control-group">
 				    	<div class="controls">
-			              <input type="text" class="input-xlarge" id="reply_to" name="reply_to" placeholder="<?php echo _('Reply to email');?>" value="<?php echo get_app_data('reply_to');?>">
+			              <input type="text" class="input-xlarge" id="reply_to" name="reply_to" placeholder="<?php echo _('name@domain.com');?>" value="<?php echo get_app_data('reply_to');?>">
 			            </div>
 			        </div>
 			        
@@ -156,15 +171,12 @@
 			            </div>
 			        </div>
 			        
-			        <label class="control-label" for="query_string"><?php echo _('Query string');?></label>
-			        <div class="well">
-				        <?php echo _("Optionally append a query string to all links in your email newsletter. A good use case is Google Analytics tracking. Don't include '?' in your query string.");?>
-			        </div>
+			        <label class="control-label" for="query_string"><?php echo _('Query string');?> <a href="javascript:void(0)" title="<?php echo _("Optionally append a query string to all links in your email newsletter. A good use case is Google Analytics tracking. Don't include '?' in your query string.");?>"><span class="icon icon-question-sign"></span></a></label>
 			    	<div class="control-group">
 				    	<div class="controls">
-			              <input type="text" class="input-xlarge" id="query_string" name="query_string" placeholder="eg. utm_source=sendy&utm_medium=email&utm_content=email%20newsletter&utm_campaign=email%20newsletter" style="width: 100%;">
+			              <input type="text" class="input-xlarge" id="query_string" name="query_string" placeholder="eg. utm_source=newsletter&utm_medium=sendy&utm_campaign=email_marketing" value="<?php echo get_app_data('query_string');?>" style="width: 100%;">
 			            </div>
-			        </div>
+			        </div><br/>
 			        
 			        <?php 
 				        $allowed_attachments = get_app_data('allowed_attachments');
@@ -177,7 +189,7 @@
 				    	<div class="controls">
 				    		<input type="file" id="attachments" name="attachments[]" multiple />
 			            </div>
-			            <p class="thirtytwo"><i>Allowed file types: <?php echo $allowed_attachments_exts;?></i></p>
+			            <p class="thirtytwo"><i><?php echo _('Allowed file types');?>: <?php echo $allowed_attachments_exts;?></i></p>
 			        </div><br/>
 			        <?php endif;?>
 			        

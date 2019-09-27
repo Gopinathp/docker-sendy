@@ -1,7 +1,7 @@
 <?php include('../functions.php');?>
 <?php include('../login/auth.php');?>
 <?php 
-	$campaign_id = mysqli_real_escape_string($mysqli, $_GET['c']);
+	$campaign_id = isset($_GET['c']) && is_numeric($_GET['c']) ? mysqli_real_escape_string($mysqli, (int)$_GET['c']) : exit;
 	$filename = 'campaign-errors.csv';
 	$lines = "Name,Email,Error code\n";
 	

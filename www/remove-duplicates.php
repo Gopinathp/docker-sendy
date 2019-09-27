@@ -1,10 +1,10 @@
 <?php include('includes/header.php');?>
 <?php include('includes/login/auth.php');?>
 <?php 
-	$listID = mysqli_real_escape_string($mysqli, $_GET['list_id']);
+	$listID = mysqli_real_escape_string($mysqli, (int)$_GET['list_id']);
 	$delete = $_POST['delete'];
 	
-	if($listID != '')
+	if($listID != '' AND $listID != 0)
 	{	
 		$q = 'SELECT name FROM lists WHERE id = '.$listID;
 		$r = mysqli_query($mysqli, $q);

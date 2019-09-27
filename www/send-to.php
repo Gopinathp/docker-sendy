@@ -3,13 +3,17 @@
 <?php include('includes/create/main.php');?>
 <?php include('includes/helpers/short.php');?>
 <?php include('includes/create/timezone.php');?>
-
+<?php require_once('includes/helpers/ses.php'); ?>
 <?php
+	//IDs
+	$cid = isset($_GET['c']) && is_numeric($_GET['c']) ? mysqli_real_escape_string($mysqli, (int)$_GET['c']) : exit;
+	$aid = isset($_GET['i']) && is_numeric($_GET['i']) ? mysqli_real_escape_string($mysqli, (int)$_GET['i']) : exit;
+			
 	if(get_app_info('is_sub_user')) 
 	{
 		if(get_app_info('app')!=get_app_info('restricted_to_app'))
 		{
-			echo '<script type="text/javascript">window.location="'.addslashes(get_app_info('path')).'/send-to?i='.get_app_info('restricted_to_app').'&c='.$_GET['c'].'"</script>';
+			echo '<script type="text/javascript">window.location="'.addslashes(get_app_info('path')).'/send-to?i='.get_app_info('restricted_to_app').'&c='.$cid.'"</script>';
 			exit;
 		}
 	}
@@ -19,15 +23,22 @@
 ?>
 
 <?php include('js/create/main.php');?>
-<script type="text/javascript" src="<?php echo get_app_info('path');?>/js/datepicker.js"></script>
-<link rel="stylesheet" type="text/css" href="css/datepicker.css" />
+<script type="text/javascript" src="<?php echo get_app_info('path');?>/js/pickaday/pikaday.js"></script>
+<script type="text/javascript" src="<?php echo get_app_info('path');?>/js/pickaday/pikaday.jquery.js"></script>
+<link rel="stylesheet" type="text/css" href="<?php echo get_app_info('path');?>/js/pickaday/pikaday.css" />
 <div class="row-fluid">
     <div class="span2">
         <?php include('includes/sidebar.php');?>
     </div> 
     <div class="span3">
     	<div>
-	    	<p class="lead"><?php echo get_app_data('app_name');?></p>
+	    	<p class="lead">
+		    	<?php if(get_app_info('is_sub_user')):?>
+			    	<?php echo get_app_data('app_name');?>
+		    	<?php else:?>
+			    	<a href="<?php echo get_app_info('path'); ?>/edit-brand?i=<?php echo get_app_info('app');?>" data-placement="right" title="<?php echo _('Edit brand settings');?>"><?php echo get_app_data('app_name');?></a>
+		    	<?php endif;?>
+		    </p>
     	</div>
     	
     	<div class="alert alert-success" id="test-send" style="display:none;">
@@ -45,11 +56,7 @@
 		  <p id="test-send-error2-msg"></p>
 		</div>
 		
-		<?php
-			//IDs
-			$cid = isset($_GET['c']) && is_numeric($_GET['c']) ? mysqli_real_escape_string($mysqli, $_GET['c']) : exit;
-			$aid = isset($_GET['i']) && is_numeric($_GET['i']) ? mysqli_real_escape_string($mysqli, $_GET['i']) : exit;
-		
+		<?php		
 	    	//check if cron is set up and get main user's email address
 	    	$q = 'SELECT username, cron FROM login WHERE id = '.get_app_info('main_userID');
 	    	$r = mysqli_query($mysqli, $q);
@@ -78,13 +85,10 @@
 					$from_email_domain_array = explode('@', $from_email);
 					$from_email_domain = $from_email_domain_array[1];
   					date_default_timezone_set($timezone);
-		    		$day = strftime("%d", $send_date);
-		    		$month = strftime("%m", $send_date);
-		    		$year = strftime("%Y", $send_date);
 		    		$hour = strftime("%l", $send_date);
 		    		$minute = strftime("%M", $send_date);
 		    		$ampm = strtolower(strftime("%p", $send_date));
-		    		$the_date = $month.'-'.$day.'-'.$year;
+		    		$the_date = strftime("%a %b %d %G", $send_date);
   					
   					if($send_date=='')
   					{
@@ -101,14 +105,46 @@
   			    }  
   			}
   			
-  			//Check if from email is verified in SES console
-  			if(!get_app_info('is_sub_user') && get_app_info('s3_key')!='' && get_app_info('s3_secret')!='')
+  			//Check if 'ONLY_FULL_GROUP_BY' is present in @@sql_mode
+			$q = 'select @@sql_mode';
+			$r = mysqli_query($mysqli, $q);
+			if ($r) while($row = mysqli_fetch_array($r)) $sql_mode = $row['@@sql_mode'];
+			$only_full_group_by = strpos($sql_mode, 'ONLY_FULL_GROUP_BY') !== false ? true : false;
+			if($only_full_group_by)
+			{
+				//ONLY_FULL_GROUP_BY is enabled in sql_mode, campaign cannot be send until 'ONLY_FULL_GROUP_BY' is removed from sql_mode
+				echo '<div class="alert alert-danger">
+						<p><strong>'._('Please disable \'ONLY_FULL_GROUP_BY\' from \'sql_mode\'').'</strong></p>
+						<p>'._('We have detected that \'ONLY_FULL_GROUP_BY\' is enabled in \'sql_mode\' in your MySQL server. Your campaign will fail to send unless \'ONLY_FULL_GROUP_BY\' is removed from \'sql_mode\'. Here\'s how to fix this &rarr; ').'<a href="https://sendy.co/troubleshooting#ubuntu-campaign-sent-to-0-recipients-and-or-autoresponders-not-sending" target="_blank">https://sendy.co/troubleshooting#ubuntu-campaign-sent-to-0-recipients-and-or-autoresponders-not-sending</a></p>
+						<p>'._('Once done, refresh this page and this error message should disappear.').'</p>
+					</div>
+					<script type="text/javascript">
+						$(document).ready(function() {
+							$("#real-btn").addClass("disabled");
+							$("#test-send-btn").addClass("disabled");
+							$("#schedule-btn").addClass("disabled");
+							$("#real-btn").attr("disabled", "disabled");
+							$("#test-send-btn").attr("disabled", "disabled");
+							$("#schedule-btn").attr("disabled", "disabled");
+							$("#email_list").attr("disabled", "disabled");
+						});
+					</script>';
+			}
+  			
+  			//If IAM keys exists
+  			if(get_app_info('s3_key')!='' && get_app_info('s3_secret')!='')
   			{
-	  			require_once('includes/helpers/ses.php');
-				$ses = new SimpleEmailService(get_app_info('s3_key'), get_app_info('s3_secret'), get_app_info('ses_endpoint'));
-				$v_addresses = $ses->ListIdentities();
+				//Check if it's a brand user
+				$is_brand_user = !get_app_info('is_sub_user') ? false : true;
+				$content_title = _('Please verify your email address');
+				$content_body = _('Before you can use the email address as your \'From email\' to send emails, please click the following link to verify that the email address belongs to you');
 				
-				if(!$v_addresses)
+				//Check if from email is verified in SES console
+				$ses = new SimpleEmailService(get_app_info('s3_key'), get_app_info('s3_secret'), get_app_info('ses_endpoint'));
+				$verify_identity_of_from_email = verify_identity($from_email);
+				$verify_identity_of_login_email = verify_identity($main_user_email);
+				
+				if($verify_identity_of_from_email=='api_error')
 				{
 					//Unable to commuincate with Amazon SES API
 					echo '<div class="alert alert-danger">
@@ -128,72 +164,113 @@
 						</script>';
 				}
 				else
-				{
-					$verifiedEmailsArray = array();
-					$verifiedDomainsArray = array();
-					foreach($v_addresses['Addresses'] as $val){
-						$validator = new EmailAddressValidator;
-						if ($validator->check_email_address($val)) array_push($verifiedEmailsArray, $val);
-						else array_push($verifiedDomainsArray, $val);
+				{				
+					if($verify_identity_of_from_email == 'unverified')
+					{				
+						//If main admin user login email address is not verified in Amazon SES console, send the generic verification email from Amazon if logged in as main user
+						if($verify_identity_of_login_email != 'verified')
+						{
+							//Send the generic verification email from Amazon if logged in as main user
+							if(!$is_brand_user)
+							{
+								//Verify email address
+								$ses->verifyEmailAddress($from_email);
+	
+								show_unverified_email_error();
+							}
+						}
+						//Otherwise, create a custom verification template and send that instead
+						else
+						{
+							//Create custom verification email template			
+							$ses->deleteCustomVerificationEmailTemplate('SendyVerificationTemplate');
+							$ses->createCustomVerificationEmailTemplate($main_user_email, get_app_info('path'), $content_title, $content_body);
+							
+							//Send custom verification email
+							$ses->sendCustomVerificationEmail($from_email);
+							
+							show_unverified_email_error();
+						}
 					}
-					
-					$veriStatus = true;
-					$getIdentityVerificationAttributes = $ses->getIdentityVerificationAttributes($from_email);
-					foreach($getIdentityVerificationAttributes['VerificationStatus'] as $getIdentityVerificationAttribute) 
-						if($getIdentityVerificationAttribute=='Pending') $veriStatus = false;
-					
-					//$from_email_verification_status = $getIdentityVerificationAttributes['VerificationStatus'];
-					
-					if(!in_array($from_email, $verifiedEmailsArray) && !in_array($from_email_domain, $verifiedDomainsArray))
+					else if($verify_identity_of_from_email == 'pending')
 					{
-						//Attempt to verify the email address, a verification email will be sent to the 'From email' address by Amazon SES
-						$ses->verifyEmailAddress($from_email);
-						
-						//From email address or domain is not verified in SES console
-						echo '<div class="alert alert-danger">
-								<p><strong>'._('Unverified \'From email\'').': '.$from_email.'</strong></p>
-								<p>'._('Your \'From email\' or its domain is not verified in your Amazon SES console. We have just sent your \'From email\' address to Amazon SES for verification. An email from Amazon is sent to your \'From email\' address with a confirmation link to complete the verification. Click the link to complete the verification, then refresh this page.').'</p>
-							</div>
-							<script type="text/javascript">
-								$(document).ready(function() {
-									$("#real-btn").addClass("disabled");
-									$("#test-send-btn").addClass("disabled");
-									$("#schedule-btn").addClass("disabled");
-									$("#real-btn").attr("disabled", "disabled");
-									$("#test-send-btn").attr("disabled", "disabled");
-									$("#schedule-btn").attr("disabled", "disabled");
-									$("#email_list").attr("disabled", "disabled");
-								});
-							</script>';
-					}
-					else if(!$veriStatus)
-					{
-						echo '
-							<div class="alert alert-danger">
-								<p><strong>\''.$from_email.'\' '._('or').' \''.$from_email_domain.'\' '._('is pending verification in your Amazon SES console').'</strong></p>
-								<p>'._('Your \'From email\' or its domain is pending verification in your Amazon SES console. Please complete the verification then refresh this page to proceed.').'</p>
-							</div>
-							<script type="text/javascript">
-								$(document).ready(function() {
-									$("#real-btn").addClass("disabled");
-									$("#test-send-btn").addClass("disabled");
-									$("#schedule-btn").addClass("disabled");
-									$("#real-btn").attr("disabled", "disabled");
-									$("#test-send-btn").attr("disabled", "disabled");
-									$("#schedule-btn").attr("disabled", "disabled");
-									$("#email_list").attr("disabled", "disabled");
-								});
-							</script>';
+						//If logged in as main user, show 'pending' identity error
+						if(!$is_brand_user)
+						{
+							echo '
+								<div class="alert alert-danger">
+									<p><strong>\''.$from_email.'\' '._('or').' \''.$from_email_domain.'\' '._('is pending verification in your Amazon SES console').'</strong></p>
+									<p>'._('Your \'From email\' or its domain is pending verification in your Amazon SES console. Please complete the verification then refresh this page to proceed.').'</p>
+								</div>
+								<script type="text/javascript">
+									$(document).ready(function() {
+										$("#real-btn").addClass("disabled");
+										$("#test-send-btn").addClass("disabled");
+										$("#schedule-btn").addClass("disabled");
+										$("#real-btn").attr("disabled", "disabled");
+										$("#test-send-btn").attr("disabled", "disabled");
+										$("#schedule-btn").attr("disabled", "disabled");
+										$("#email_list").attr("disabled", "disabled");
+										$("#email_list_exclude").attr("disabled", "disabled");
+										$("#pay-btn").addClass("disabled");
+									});
+								</script>';
+						}
+						else
+						{
+							//Create custom verification email template			
+							$ses->deleteCustomVerificationEmailTemplate('SendyVerificationTemplate');
+							$ses->createCustomVerificationEmailTemplate($main_user_email, get_app_info('path'), $content_title, $content_body);
+							
+							//Send custom verification email
+							$ses->sendCustomVerificationEmail($from_email);
+							
+							show_unverified_email_error();
+						}
 					}
 					else
 					{
 						//Set email feedback forwarding to false
-						$ses = new SimpleEmailService(get_app_info('s3_key'), get_app_info('s3_secret'), get_app_info('ses_endpoint'));
 						$ses->setIdentityFeedbackForwardingEnabled($from_email, 'false');
 						$ses->setIdentityFeedbackForwardingEnabled($from_email_domain, 'false');
 					}
-				}
-			}			
+				}	
+			}
+			
+			function show_unverified_email_error()
+			{
+				global $is_brand_user;
+				global $from_email;
+				
+				$unverified_email_error = !$is_brand_user 
+				? _('Your \'From email\' or its domain is not verified in your Amazon SES console. A verification email has been sent to your \'From email\' address with a confirmation link to complete the verification. Please click the link to complete the verification, then refresh this page.') 
+				: _('A verification email has been sent to your \'From email\' address with a confirmation link. Please click the link to verify you are the owner of the \'From email\', then refresh this page.');
+				
+				//From email address or domain is not verified in SES console
+				echo '<div class="alert alert-danger">
+					<p><strong>'._('Unverified \'From email\'').': '.$from_email.'</strong></p>
+					<p>'.$unverified_email_error.'</p>
+				</div>
+				<script type="text/javascript">
+					$(document).ready(function() {
+						$("#real-btn").addClass("disabled");
+						$("#test-send-btn").addClass("disabled");
+						$("#schedule-btn").addClass("disabled");
+						$("#real-btn").attr("disabled", "disabled");
+						$("#test-send-btn").attr("disabled", "disabled");
+						$("#schedule-btn").attr("disabled", "disabled");
+						$("#email_list").attr("disabled", "disabled");
+						$("#email_list_exclude").attr("disabled", "disabled");
+						$("#pay-btn").addClass("disabled");
+					});
+				</script>';
+			}
+			
+			//Get sorting preference
+			$q = 'SELECT templates_lists_sorting FROM apps WHERE id = '.get_app_info('app');
+			$r = mysqli_query($mysqli, $q);
+			if ($r && mysqli_num_rows($r) > 0) while($row = mysqli_fetch_array($r)) $templates_lists_sorting = $row['templates_lists_sorting'];
+			$sortby = $templates_lists_sorting=='date' ? 'id DESC' : 'name ASC';
 	    ?>
     	
     	<h2><?php echo _('Test send this campaign');?></h2><br/>
@@ -201,11 +278,11 @@
 	    	<label class="control-label" for="test_email"><?php echo _('Test email(s)');?></label>
 	    	<div class="control-group">
 		    	<div class="controls">
-	              <input type="text" class="input-xlarge" id="test_email" name="test_email" placeholder="<?php echo _('Email addresses, separated by comma');?>" value="<?php echo get_app_data('test_email');?>">
+	              <input type="text" class="input-xlarge" id="test_email" name="test_email" placeholder="<?php echo _('Email addresses, separated by comma');?>" value="<?php echo get_app_data('test_email');?>" style="width: 85%;">
 	            </div>
 	        </div>
 	        <input type="hidden" name="cid" value="<?php echo $cid;?>">
-	        <input type="hidden" name="webversion" value="<?php echo get_app_info('path');?>/w/<?php echo short($cid);?>">
+	        <input type="hidden" name="display_errors" value="<?php echo isset($_GET['display_errors']) ? '1' : '0';?>">
 	        <button type="submit" class="btn" id="test-send-btn"><i class="icon icon-envelope-alt"></i> <?php echo _('Test send this newsletter');?></button>
 	    </form>
 	    
@@ -221,56 +298,194 @@
 				<form action="<?php echo get_app_info('path')?>/includes/create/send-now.php" method="POST" accept-charset="utf-8" class="form-vertical" id="real-form">
 			<?php endif;?>
 	    	<div class="control-group">
-            <label class="control-label" for="multiSelect"><?php echo _('Select email list(s)');?></label>
-            <div class="controls">
-              <select multiple="multiple" id="email_list" name="email_list[]" style="height:200px">
-              	<?php 
-	              	$q = 'SELECT * FROM lists WHERE app = '.get_app_info('app').' AND userID = '.get_app_info('main_userID').' ORDER BY name ASC';
-	              	$r = mysqli_query($mysqli, $q);
-	              	if ($r && mysqli_num_rows($r) > 0)
-	              	{
-	              	    while($row = mysqli_fetch_array($r))
-	              	    {
-	              			$list_id = stripslashes($row['id']);
-	              			$list_name = stripslashes($row['name']);
-	              			$list_selected = '';
-	              			
-	              			$q2 = 'SELECT lists FROM campaigns WHERE id = '.$cid;
-	              			$r2 = mysqli_query($mysqli, $q2);
-	              			if ($r2)
-	              			{
-	              			    while($row = mysqli_fetch_array($r2))
-	              			    {
-	              					$lists = $row['lists'];
-	              					$lists_array = explode(',', $lists);
-	              					if(in_array($list_id, $lists_array))
-	              						$list_selected = 'selected';
-	              			    }  
-	              			}
-	              			
-	              			echo '<option value="'.$list_id.'" data-quantity="'.get_list_quantity($list_id).'" id="'.$list_id.'" '.$list_selected.'>'.$list_name.'</option>';
-	              	    }  
-	              	}
-	              	else
-	              	{
-		              	echo '<option value="" onclick="window.location=\''.get_app_info('path').'/new-list?i='.$aid.'\'">'._('No list found, click to add one.').'</option>';
-	              	}
-              	?>
-              </select>
+	            <label class="control-label" for="multiSelect"><?php echo _('Choose your lists & segments');?></label>
+	            <div class="controls">
+	              <select multiple="multiple" id="email_list" name="email_list[]" style="height:200px; width: 85%;">
+				  		<optgroup label="Lists">
+						<?php 
+							$q = 'SELECT * FROM lists WHERE app = '.get_app_info('app').' AND userID = '.get_app_info('main_userID').' ORDER BY '.$sortby;
+							$r = mysqli_query($mysqli, $q);
+							if ($r && mysqli_num_rows($r) > 0)
+							{
+							    while($row = mysqli_fetch_array($r))
+							    {
+									$list_id = stripslashes($row['id']);
+									$list_name = stripslashes($row['name']);
+									$list_selected = '';
+									
+									$q2 = 'SELECT lists FROM campaigns WHERE id = '.$cid;
+									$r2 = mysqli_query($mysqli, $q2);
+									if ($r2)
+									{
+									    while($row = mysqli_fetch_array($r2))
+									    {
+											$lists = $row['lists'];
+											$lists_array = explode(',', $lists);
+											if(in_array($list_id, $lists_array))
+												$list_selected = 'selected';
+									    }  
+									}
+									
+									echo '<option value="'.$list_id.'" data-quantity="'.get_list_quantity($list_id).'" id="'.$list_id.'" '.$list_selected.'>'.$list_name.'</option>';
+							    }  
+							}
+							else
+							{
+						  	echo '<option value="" onclick="window.location=\''.get_app_info('path').'/new-list?i='.$aid.'\'">'._('No list found, click to add one.').'</option>';
+							}
+						?>
+						<option disabled></option>
+						<?php if(have_segments()):?>
+							<optgroup label="<?php echo _('Segments');?>">
+							<?php 
+								$q = 'SELECT id, name, list FROM seg WHERE app = '.get_app_info('app');
+								$r = mysqli_query($mysqli, $q);
+								if ($r && mysqli_num_rows($r) > 0)
+								{
+								    while($row = mysqli_fetch_array($r))
+								    {
+								    	$seg_id = $row['id'];
+										$seg_name = $row['name'];
+										$seg_list_id = $row['list'];
+										$list_selected = '';
+										
+										$q2 = 'SELECT segs FROM campaigns WHERE id = '.$cid;
+										$r2 = mysqli_query($mysqli, $q2);
+										if ($r2)
+										{
+										    while($row = mysqli_fetch_array($r2))
+										    {
+												$segs = $row['segs'];
+												$segs_array = explode(',', $segs);
+												if(in_array($seg_id, $segs_array))
+													$list_selected = 'selected';
+										    }  
+										}
+										
+										echo '<option value="'.$seg_id.'" data-is-seg="yes" id="seg_'.$seg_id.'" '.$list_selected.'>'.$seg_name.'</option>';
+									}
+								}
+							?>
+						<?php else:?>
+							<optgroup label="<?php echo _('Segments');?>" style="color:#dddddd;">
+							<option disabled><?php echo _('No segments found');?></option>
+						<?php endif;?>
+	              </select><br/>
+	              
+	              <p id="excl" style="margin-top:5px;"><a href="javascript:void(0)" class="btn" id="exclude_btn"><span class="icon icon-minus-sign"></span> <?php echo _('Exclude lists from this campaign?');?></a><br/><br/></p>
+	              <script type="text/javascript">
+		              $(document).ready(function() {
+					  	$("#exclude_btn").click(function(){
+						  	$("#excl").slideUp();
+						  	$("#exclude_list_select").slideDown();
+					  	});
+					  });
+	              </script>
+	            </div>
             </div>
-          </div>
+            
+            <!-- Exclude lists -->
+            <div class="control-group" id="exclude_list_select" style="display:none;">
+	            <label class="control-label" for="multiSelect" width="200"><?php echo _('Don\'t include emails from these list & segments');?></label>
+	            <div class="controls">
+					<select multiple="multiple" id="email_list_exclude" name="email_list_exclude[]" style="height:200px; width: 85%;">
+						<optgroup label="Lists">
+						<?php 
+							$q = 'SELECT * FROM lists WHERE app = '.get_app_info('app').' AND userID = '.get_app_info('main_userID').' ORDER BY '.$sortby;
+							$r = mysqli_query($mysqli, $q);
+							if ($r && mysqli_num_rows($r) > 0)
+							{
+							    while($row = mysqli_fetch_array($r))
+							    {
+									$list_id = stripslashes($row['id']);
+									$list_name = stripslashes($row['name']);
+									$list_selected = '';
+									
+									$q2 = 'SELECT lists_excl, segs_excl FROM campaigns WHERE id = '.$cid;
+									$r2 = mysqli_query($mysqli, $q2);
+									if ($r2)
+									{
+									    while($row = mysqli_fetch_array($r2))
+									    {
+											$lists = $row['lists_excl'];
+											$segs = $row['segs_excl'];
+											if($lists != '' || $segs !='')
+											{
+							  					echo '<script charset="utf-8">
+									            	$(document).ready(function() {
+														$("#excl").hide();
+														$("#exclude_list_select").show();
+													});
+									            </script>';
+											}
+											$lists_array = explode(',', $lists);
+											if(in_array($list_id, $lists_array))
+												$list_selected = 'selected';
+									    }  
+									}
+									
+									echo '<option value="'.$list_id.'" id="excl_'.$list_id.'" '.$list_selected.'>'.$list_name.'</option>';
+							    }  
+							}
+							else
+							{
+						  	echo '<option value="" onclick="window.location=\''.get_app_info('path').'/new-list?i='.$aid.'\'">'._('No list found, click to add one.').'</option>';
+							}
+						?>
+						<option disabled></option>
+						<?php if(have_segments()):?>
+							<optgroup label="<?php echo _('Segments');?>">
+							<?php 
+								$q = 'SELECT id, name, list FROM seg WHERE app = '.get_app_info('app');
+								$r = mysqli_query($mysqli, $q);
+								if ($r && mysqli_num_rows($r) > 0)
+								{
+								    while($row = mysqli_fetch_array($r))
+								    {
+								    	$seg_id = $row['id'];
+										$seg_name = $row['name'];
+										$seg_list_id = $row['list'];
+										$list_selected = '';
+										
+										$q2 = 'SELECT segs_excl FROM campaigns WHERE id = '.$cid;
+										$r2 = mysqli_query($mysqli, $q2);
+										if ($r2)
+										{
+										    while($row = mysqli_fetch_array($r2))
+										    {
+												$segs_excl = $row['segs_excl'];
+												$segs_excl_array = explode(',', $segs_excl);
+												if(in_array($seg_id, $segs_excl_array))
+													$list_selected = 'selected';
+										    }  
+										}
+										
+										echo '<option value="'.$seg_id.'" data-is-seg="yes" id="excl_seg_'.$seg_id.'" '.$list_selected.'>'.$seg_name.'</option>';
+									}
+								}
+							?>
+						<?php else:?>
+							<optgroup label="<?php echo _('Segments');?>" style="color:#dddddd;">
+							<option disabled><?php echo _('No segments found');?></option>
+						<?php endif;?>
+					</select>
+				</div>
+            </div>
 	        <input type="hidden" name="cid" value="<?php echo $cid;?>">
 	        <input type="hidden" name="uid" value="<?php echo $aid;?>">
 	        <input type="hidden" name="path" value="<?php echo get_app_info('path');?>">
 	        <input type="hidden" name="grand_total_val" id="grand_total_val">
 	        <input type="hidden" name="cron" value="<?php echo $cron;?>">
 	        <input type="hidden" name="total_recipients" id="total_recipients">
+	        <input type="hidden" name="in_list" id="in_list">
+	        <input type="hidden" name="ex_list" id="ex_list">
+	        <input type="hidden" name="in_list_seg" id="in_list_seg">
+	        <input type="hidden" name="ex_list_seg" id="ex_list_seg">
 	        
 	        <?php				
 	        	//Get SES quota (array)
 	        	if($aws_keys_available=='true')
 	        	{
-			    	require_once('includes/helpers/ses.php');
 					$ses = new SimpleEmailService(get_app_info('s3_key'), get_app_info('s3_secret'), get_app_info('ses_endpoint'));
 					$quotaArray = array();
 					foreach($ses->getSendQuota() as $quota){
@@ -290,6 +505,7 @@
 					$day_of_reset = get_app_data('day_of_reset');
 					$month_of_next_reset = get_app_data('month_of_next_reset');
 					$year_of_next_reset = get_app_data('year_of_next_reset');
+					$no_expiry = get_app_data('no_expiry');
 					
 		        	//Brand limits
 					$today_unix_timestamp = time();
@@ -321,21 +537,31 @@
 							$month_next = strftime("%b", $month_next_unix);
 							$year_next = strftime("%G", $month_next_unix);
 							
-							//Reset current limit to 0 and set the month_of_next_reset to the next month
-							$q = 'UPDATE apps SET current_quota = 0, month_of_next_reset = "'.$month_next.'", year_of_next_reset = "'.$year_next.'" WHERE id = '.get_app_info('app');
-							$r = mysqli_query($mysqli, $q);
-							if($r) 
+							//If brand limits is set to 'No expiry'
+							if(!$no_expiry)
 							{
-								//Update new $month_of_next_reset
-								$month_of_next_reset = $month_next;
+								//Reset current limit to 0 and set the month_of_next_reset to the next month
+								$q = 'UPDATE apps SET current_quota = 0, month_of_next_reset = "'.$month_next.'", year_of_next_reset = "'.$year_next.'" WHERE id = '.get_app_info('app');
+								$r = mysqli_query($mysqli, $q);
+								if($r) 
+								{
+									//Update new $month_of_next_reset
+									$month_of_next_reset = $month_next;
+								}
 							}
 						}
 						
-						//Calculate day of reset for next month
-						$month_next = strtotime('1 '.$month_of_next_reset);
-						$month_next = strftime("%m", $month_next);
-						$no_of_days_next_month = cal_days_in_month(CAL_GREGORIAN, $month_next, $year_today);
-						$brand_limit_resets_on = $day_of_reset>$no_of_days_next_month ? $no_of_days_next_month : $day_of_reset;
+						//If brand limits is set to 'No expiry'
+						if(!$no_expiry)
+						{
+							//Calculate day of reset for next month
+							$month_next = strtotime('1 '.$month_of_next_reset);
+							$month_next = strftime("%m", $month_next);
+							$no_of_days_next_month = cal_days_in_month(CAL_GREGORIAN, $month_next, $year_today);
+							$brand_limit_resets_on = $day_of_reset>$no_of_days_next_month ? $no_of_days_next_month : $day_of_reset;
+							$resets_on = ' ('._('resets on').' '.$month_of_next_reset.' '.$brand_limit_resets_on.')';
+						}
+						else $resets_on = '';
 						
 						//Get sends left
 						$brand_current_quota = get_app_data('current_quota');
@@ -358,9 +584,9 @@
 	        	
 		        <?php if(paid()):?>
 		        
-			        <?php if($brand_monthly_quota!=-1):?><strong><?php echo _('Monthly limit');?></strong>: <?php echo $brand_monthly_quota.' ('._('resets on').' '.$month_of_next_reset.' '.$brand_limit_resets_on;?>)<br/><?php endif;?>
+			        <?php if($brand_monthly_quota!=-1):?><strong><?php echo _('Monthly limit');?></strong>: <?php echo $brand_monthly_quota.$resets_on;?><br/><?php endif;?>
 		        	<strong><?php echo _('Recipients');?></strong>: <span id="recipients">0</span> 
-		        	<?php if($brand_monthly_quota!=-1) echo _('of').' '.$brand_sends_left._(' remaining')?><br/><br/>
+		        	<?php if($brand_monthly_quota!=-1) echo '<span id="remaining">'._('of').' '.$brand_sends_left._(' remaining').'</span>'?><br/><br/>
 		        	
 		        	<!-- over limit msg -->
 			    	<div class="alert alert-error" id="over-limit" style="display:none;">
@@ -387,9 +613,9 @@
 		        <?php else:?>
 			        <input type="hidden" name="paypal" value="<?php echo get_paypal();?>">
 			        <div class="well" style="width:260px;">
-			        	<?php if($brand_monthly_quota!=-1):?><strong><?php echo _('Monthly limit');?></strong>: <?php echo $brand_monthly_quota.' ('._('resets on').' '.$month_of_next_reset.' '.$brand_limit_resets_on;?>)<br/><?php endif;?>
+			        	<?php if($brand_monthly_quota!=-1):?><strong><?php echo _('Monthly limit');?></strong>: <?php echo $brand_monthly_quota.$resets_on;?><br/><?php endif;?>
 				        <strong><?php echo _('Recipients');?></strong>: <span id="recipients">0</span> 
-				        <?php if($brand_monthly_quota!=-1) echo _('of').' '.$brand_sends_left._(' remaining')?><br/>
+				        <?php if($brand_monthly_quota!=-1) echo '<span id="remaining">'._('of').' '.$brand_sends_left._(' remaining').'</span>'?><br/>
 				        <strong><?php echo _('Delivery Fee');?></strong>: <?php echo get_fee('currency');?> <span id="delivery_fee"><?php echo get_fee('delivery_fee');?></span><br/>
 				        <strong><?php echo _('Fee per recipient');?></strong>: <?php echo get_fee('currency');?> <span id="recipient_fee"><?php echo get_fee('cost_per_recipient');?></span><br/><br/>
 				        <span class="grand_total"><strong><?php echo _('Grand total');?></strong>: <?php echo get_fee('currency');?> <span id="grand_total">0</span></span>
@@ -412,7 +638,7 @@
 		        
 		    <?php else:?>
 		    
-		    	<strong><?php echo _('Recipients');?></strong>: <span id="recipients">0</span> <?php echo $aws_keys_available=='true' ? _('of') : '';?> <?php echo $aws_keys_available=='true' ? $ses_sends_left : ''; echo _(' remaining');?><br/>
+		    	<strong><?php echo _('Recipients');?></strong>: <span id="recipients">0</span> <span id="remaining"><?php echo $aws_keys_available=='true' ? _('of') : '';?> <?php echo $aws_keys_available=='true' ? $ses_sends_left : ''; echo $aws_keys_available=='true' ? _(' remaining') : '';?></span><br/>
 		    	
 		    	<?php if($aws_keys_available=='true'):?>
 		    	<strong><?php echo _('SES sends left');?></strong>: <span id="sends_left"><?php echo $ses_sends_left.' of '.$ses_quota;?></span><br/>
@@ -481,7 +707,6 @@
 						    else echo '<p class="error">'._('Error: Unable to create bounces and complaints SNS topics, please try again by refreshing this page.')."<br/><br/></p>";
 						    
 						    //Set SNS 'Notifications' for 'From email'
-					        require_once('includes/helpers/ses.php');
 							$ses = new SimpleEmailService(get_app_info('s3_key'), get_app_info('s3_secret'), get_app_info('ses_endpoint'));
 							
 							//Set 'bounces' Notification
@@ -581,7 +806,7 @@
 		    	<?php if(!$cron):?>
 		    	<br/><br/>
 		    	<div class="alert alert-info">
-			    	<p><strong><?php echo _('Note');?>:</strong> <?php echo _('We recommend');?> <a href="#cron-instructions" data-toggle="modal" style="text-decoration:underline"><?php echo _('setting up CRON');?></a> <?php echo _('to send your newsletters');?>. <?php echo _('Newsletters sent via CRON have the added ability to automatically resume sending when your server times out. You\'ll also be able to schedule emails.');?></p>
+			    	<p><i class="icon icon-info-sign"></i> <?php echo _('We recommend');?> <a href="#cron-instructions" data-toggle="modal" style="text-decoration:underline"><?php echo _('setting up CRON');?></a> <?php echo _('to send your newsletters');?>. <?php echo _('Newsletters sent via CRON have the added ability to automatically resume sending when your server times out. You\'ll also be able to schedule emails.');?></p>
 			    	<p><?php echo _('You haven\'t set up CRON yet, but that\'s okay. You can still send newsletters right now. But keep in mind that you won\'t be able to navigate around Sendy until sending is complete. Also, you\'ll need to manually resume sending (with a click of a button) if your server times out.');?></p>
 			    	<p><a href="#cron-instructions" data-toggle="modal" style="text-decoration:underline"><?php echo _('Setup CRON now');?> &rarr;</a></p>
 		    	</div>
@@ -610,11 +835,11 @@
             </div>
             <div class="modal-body">
             <p><?php echo _('To schedule campaigns or to make sending more reliable, add a');?> <a href="http://en.wikipedia.org/wiki/Cron" target="_blank" style="text-decoration:underline"><?php echo _('cron job');?></a> <?php echo _('with the following command.');?></p>
+            <h3><?php echo _('Time Interval');?></h3>
+<pre id="command">*/5 * * * * </pre>
             <h3><?php echo _('Command');?></h3>
             <pre id="command">php <?php echo $server_path;?>scheduled.php > /dev/null 2>&amp;1</pre>
-            <p><?php echo _('This command needs to be run every 5 minutes in order to check the database for any scheduled campaigns to send. You\'ll need to set your cron job with the following.');?><br/><em><?php echo _('(Note that adding cron jobs vary from hosts to hosts, most offer a UI to add a cron job easily. Check your hosting control panel or consult your host if unsure.)');?></em>.</p>
-            <h3><?php echo _('Cron job');?></h3>
-            <pre id="cronjob">*/5 * * * * php <?php echo $server_path;?>scheduled.php > /dev/null 2>&amp;1</pre>
+            <p><?php echo _('This command needs to be run every 5 minutes in order to check the database for any scheduled campaigns to send.');?><br/><em><?php echo _('(Note that adding cron jobs vary from hosts to hosts, most offer a UI to add a cron job easily. Check your hosting control panel or consult your host if unsure.)');?></em>.</p>
             <p><?php echo _('Once added, wait around 5 minutes. If your cron job is functioning correctly, you\'ll see the scheduling options instead of this modal window when you click on "Schedule this campaign?".');?></p>
             </div>
             <div class="modal-footer">
@@ -649,6 +874,9 @@
 		    	<h3><i class="icon-ok icon-time" style="margin-top:5px;"></i> <?php echo _('Schedule this campaign');?></h3><br/>
 	    		<input type="hidden" name="campaign_id" value="<?php echo $cid;?>"/>
 	    		<input type="hidden" name="email_lists" id="email_lists"/>
+	    		<input type="hidden" name="email_lists_excl" id="email_lists_excl"/>
+	    		<input type="hidden" name="email_lists_segs" id="email_lists_segs"/>
+	    		<input type="hidden" name="email_lists_segs_excl" id="email_lists_segs_excl"/>
 	    		<input type="hidden" name="app" value="<?php echo $aid;?>"/>
 	    		
 	    		<label for="send_date"><?php echo _('Pick a date');?></label>
@@ -656,14 +884,11 @@
 	    			if($send_date=='')
 	    			{
 		    			$tomorrow = time()+86400;
-			    		$day = strftime("%d", $tomorrow);
-			    		$month = strftime("%m", $tomorrow);
-			    		$year = strftime("%Y", $tomorrow);
-			    		$the_date = $month.'-'.$day.'-'.$year;
+			    		$the_date = strftime("%a %b %d %G", $tomorrow);
 			    	}
 	    		?>
-	    		<div class="input-prepend date" id="datepicker" data-date="<?php echo $the_date;?>" data-date-format="mm-dd-yyyy">
-	             <input type="text" name="send_date" value="<?php echo $the_date;?>" readonly><span class="add-on"><i class="icon-calendar" id="date-icon"></i></span>
+	    		<div class="input-prepend date">
+	             <span class="add-on"><i class="icon-calendar" id="date-icon"></i></span><input type="text" name="send_date" value="<?php echo $the_date;?>" id="datepicker" readonly>
 	            </div>
 	            <br/>
 	            <label><?php echo _('Set a time');?></label>
@@ -733,17 +958,19 @@
     <div class="span7">
     	<div>
 	    	<h2><?php echo _('Newsletter preview');?></h2><br/>
-	    	<blockquote><strong><?php echo _('From');?></strong> <span class="label"><?php echo get_saved_data('from_name');?> &lt;<?php echo get_saved_data('from_email');?>&gt;</span></blockquote>
+	    	
+	    	<blockquote>
+	    	<p><strong><?php echo _('From');?></strong> <span class="label"><?php echo get_saved_data('from_name');?> &lt;<?php echo get_saved_data('from_email');?>&gt;</span></p>
 	    	<?php if(get_saved_data('label')!=''):?>
-		    	<blockquote><strong><?php echo _('Campaign title');?></strong> <span class="label"><?php echo get_saved_data('label');?></span></blockquote>
+		    	<p><strong><?php echo _('Campaign title');?></strong> <span class="label"><?php echo get_saved_data('label');?></span></p>
 	    	<?php endif;?>
-	    	<blockquote><strong><?php echo _('Subject');?></strong> <span class="label"><?php echo get_saved_data('title');?></span></blockquote>
-	    	<blockquote><strong><?php echo _('Opens tracking');?></strong> <?php echo get_saved_data('opens_tracking') ? '<span class="label label-success">Enabled</span>' : '<span class="label">Disabled</span>';?></blockquote>
-	    	<blockquote><strong><?php echo _('Clicks tracking');?></strong> <?php echo get_saved_data('links_tracking') ? '<span class="label label-success">Enabled</span>' : '<span class="label">Disabled</span>';?></blockquote>
+	    	<p><strong><?php echo _('Subject');?></strong> <span class="label"><?php echo get_saved_data('title');?></span></p>
+	    	<p><strong><?php echo _('Opens tracking');?></strong> <?php echo get_saved_data('opens_tracking') ? '<span class="label label-success">'._('Enabled').'</span>' : '<span class="label">'._('Disabled').'</span>';?></p>
+	    	<p><strong><?php echo _('Clicks tracking');?></strong> <?php echo get_saved_data('links_tracking') ? '<span class="label label-success">'._('Enabled').'</span>' : '<span class="label">'._('Disabled').'</span>';?></p>
 	    	<?php 
 		        if (file_exists('uploads/attachments/'.$cid))
 				{
-					echo '<blockquote><strong>'._('Attachments').'</strong>';
+					echo '<p><strong>'._('Attachments').'</strong>';
 					if($handle = opendir('uploads/attachments/'.$cid))
 					{
 						$i = -1;
@@ -752,7 +979,7 @@
 					    	if($file!='.' && $file!='..'):
 			    ?>
 								<ul id="attachments" style="margin-top: 10px;">
-									<li id="attachment<?php echo $i;?>" style="background: white; padding: 0px;">
+									<li id="attachment<?php echo $i;?>" style="background: #fffdef; padding: 5px 8px;">
 										<?php 
 											$filen = $file;
 											if(strlen($filen)>30) $filen = substr($file, 0, 30).'...';
@@ -795,12 +1022,13 @@
 					
 					    closedir($handle);
 					    
-					    echo '</blockquote>';
+					    echo '</p>';
 					}
 				}
 	        ?>
+	    	</div>
 	    	<iframe src="<?php echo get_app_info('path');?>/w/<?php echo short($cid);?>?<?php echo time();?>" id="preview-iframe"></iframe>
-    	</div>
+    	</blockquote>
     </div>
 </div>
 
@@ -812,10 +1040,7 @@
 		$("#schedule-btn").click(function(e){
 			e.preventDefault(); 
 			
-			send_or_schedule = 'schedule';
-			email_list = $('select#email_list').val();
-			
-			if(email_list == null)
+			if(email_list == null || $("#recipients").text()=="0")
 			{
 				$("#schedule-btn").effect("shake", { times:3 }, 60);
 				$("#email_list").effect("shake", { times:3 }, 60);
@@ -832,16 +1057,14 @@
 		$("#real-form").submit(function(e){
 			e.preventDefault(); 
 			
-			send_or_schedule = 'send';
-			
-			if($("#email_list").val() == null)
+			if($("#email_list").val() == null || $("#recipients").text()=="0")
 			{
 				$("#real-btn").effect("shake", { times:3 }, 60);
 				$("#email_list").effect("shake", { times:3 }, 60);
 			}
 			else
 			{
-				<?php if($_SESSION[$_SESSION['license']] != hash('sha512', $_SESSION['license'].'2ifQ9IppVwYdOgSJoQhKOHAUK/oPwKZy')) :?>
+				<?php if($_SESSION[$_SESSION['license']] != hash('sha512', $_SESSION['license'].'ttcwjc8Q4N4J7MS7/hTCrRSm9Uv7h3GS') && !get_app_info('is_sub_user')) :?>
 				if(confirm("Hi! This is Ben, the indie developer of Sendy. Please consider supporting my tireless efforts in developing this software you are using by purchasing a copy of Sendy at sendy.co. I really appreciate your support. Thank you and God bless!")) window.location = "https://sendy.co"; else window.location = "https://sendy.co";
 				<?php else:?>
 				c = confirm("<?php echo addslashes(_('Have you double checked your selected lists? If so, let\'s go ahead and send this!'));?>");
@@ -853,7 +1076,7 @@
 		//send to PayPal
 		$("#pay-form").submit(function(e){
 			$("#total_recipients").val($("#recipients").text());
-			if($('select#email_list').val() == null)
+			if($('select#email_list').val() == null || $("#recipients").text()=="0")
 			{
 				e.preventDefault(); 
 				$("#pay-btn").effect("shake", { times:3 }, 60);
@@ -868,18 +1091,19 @@
 		});
 		
 		function send_it()
-		{
-			$('#sns-loading').modal('hide');
-			
+		{			
 			$("#total_recipients").val($("#recipients").text());
 			
 			var $form = $("#real-form"),
 			campaign_id = $form.find('input[name="cid"]').val(),
-			email_list = $form.find('select#email_list').val(),
 			uid = $form.find('input[name="uid"]').val(),
 			path = $form.find('input[name="path"]').val(),
 			cron = $form.find('input[name="cron"]').val(),
 			total_recipients = $form.find('input[name="total_recipients"]').val(),
+			inlists = $("#in_list").val();
+			exlists = $("#ex_list").val();
+			inlists_seg = $("#in_list_seg").val();
+			exlists_seg = $("#ex_list_seg").val();			
 			url = $form.attr('action');
 			
 			$("#real-btn").addClass("disabled");
@@ -887,7 +1111,7 @@
 			$("#view-report").show();
 			$("#edit-newsletter").hide();
 				
-			$.post(url, { campaign_id: campaign_id, email_list: email_list, app: uid, cron: cron, total_recipients: total_recipients },
+			$.post(url, { campaign_id: campaign_id, email_list: inlists, email_list_exclude: exlists, email_lists_segs: inlists_seg, email_lists_segs_excl: exlists_seg, app: uid, cron: cron, total_recipients: total_recipients },
 			  function(data) {
 			  	  
 			  	  $("#test-send").css("display", "none");
@@ -903,30 +1127,8 @@
 			  }
 			);
 		}
-		
-		$("#send-anyway").click(function(){
-			if(send_or_schedule=='send') send_it();
-			else $("#schedule-form").submit();
-		});
 	});
 </script>
-
-<div id="sns-loading" class="modal hide fade">
-<div class="modal-header">
-  <button type="button" class="close" data-dismiss="modal">&times;</button>
-  <h3><?php echo _('Checking bounces & complaints set up');?></h3>
-</div>
-<div class="modal-body">
-    <div class="well" style="float:left;">
-    	<img src="<?php echo get_app_info('path');?>/img/loader.gif" style="float:left; margin-right:5px; width: 16px;"/> 
-    	<p style="float:right; width:450px;">
-	    	<span id="please-wait-msg"><?php echo _('Please wait while we check if bounces & complaints have been set up. Checks are only done once per \'From email\'.');?></span>
-	    </p>
-    </div>
-    <p style="float:left; clear:both;"><i><?php echo _('If this window does not disappear after 10 seconds, hit \'Esc\' and try again.');?></i></p>
-</div>
-
-</div>
 
 <div id="sns-warning" class="modal hide fade">
 <div class="modal-header">

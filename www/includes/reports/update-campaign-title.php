@@ -1,7 +1,7 @@
 <?php include('../functions.php');?>
 <?php include('../login/auth.php');?>
-<?php 
-	$campaign_id = mysqli_real_escape_string($mysqli, $_POST['campaign_id']);
+<?php 	
+	$campaign_id = isset($_POST['campaign_id']) && is_numeric($_POST['campaign_id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['campaign_id']) : exit;
 	$campaign_title = mysqli_real_escape_string($mysqli, $_POST['campaign_title']);
 	
 	//Update campaign title

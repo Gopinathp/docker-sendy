@@ -21,6 +21,7 @@
 				c_field: "<?php echo addslashes(_('Please enter a custom field name'));?>"
 			}
 		});
+		$("#c_field").focus();
 	});
 </script>
 
@@ -32,7 +33,13 @@
     	<div class="row-fluid">
 	    	<div class="span12">
 		    	<div>
-			    	<p class="lead"><?php echo get_app_data('app_name');?></p>
+			    	<p class="lead">
+		    	<?php if(get_app_info('is_sub_user')):?>
+			    	<?php echo get_app_data('app_name');?>
+		    	<?php else:?>
+			    	<a href="<?php echo get_app_info('path'); ?>/edit-brand?i=<?php echo get_app_info('app');?>" data-placement="right" title="<?php echo _('Edit brand settings');?>"><?php echo get_app_data('app_name');?></a>
+		    	<?php endif;?>
+		    </p>
 		    	</div>
 		    	<h2><?php echo _('Custom fields');?></h2>
 				<br/>
@@ -67,7 +74,7 @@
 				  </div>
 				  <input type="hidden" name="id" value="<?php echo get_app_info('app');?>"/>
 				  <input type="hidden" name="list" value="<?php echo $lid;?>"/>
-				  <button type="submit" class="btn" id="c_button"><i class="icon icon-plus"></i> <?php echo _('Add custom field');?></button>
+				  <button type="submit" class="btn btn-inverse" id="c_button"><i class="icon icon-plus"></i> <?php echo _('Add custom field');?></button>
 				</form>
 			</div>
 	    </div>
@@ -201,6 +208,9 @@
 	});
 	$("#save-btn").click(function(){
 		$("#edit-form").submit();
+	});
+	$("#edit-custom-field").on("shown", function(){
+		$("#field_name").focus();
 	});
 </script>
 

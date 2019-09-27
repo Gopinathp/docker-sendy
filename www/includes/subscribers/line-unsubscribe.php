@@ -4,8 +4,8 @@
 
 /********************************/
 $userID = get_app_info('main_userID');
-$app = $_POST['app'];
-$listID = mysqli_real_escape_string($mysqli, $_POST['list_id']);
+$app = isset($_POST['app']) && is_numeric($_POST['app']) ? mysqli_real_escape_string($mysqli, (int)$_POST['app']) : exit;
+$listID = isset($_POST['list_id']) && is_numeric($_POST['list_id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['list_id']) : exit;
 $line = $_POST['line'];
 /********************************/
 
@@ -21,7 +21,7 @@ $line_array = explode("\r\n", $line);
 
 for($i=0;$i<count($line_array);$i++)
 {
-	$q = 'UPDATE subscribers SET unsubscribed = 1 WHERE email = "'.trim($line_array[$i]).'" AND list = '.$listID.' AND userID = '.$userID;
+	$q = 'UPDATE subscribers SET unsubscribed = 1 WHERE email = "'.mysqli_real_escape_string($mysqli, trim($line_array[$i])).'" AND list = '.$listID.' AND userID = '.$userID;
 	$r = mysqli_query($mysqli, $q);
 	if ($r){}
 }

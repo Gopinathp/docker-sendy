@@ -5,11 +5,11 @@
 	//                      VARIABLES                       //
 	//------------------------------------------------------//
 	
-	$app = mysqli_real_escape_string($mysqli, $_POST['app']);
+	$app = isset($_POST['app']) && is_numeric($_POST['app']) ? mysqli_real_escape_string($mysqli, (int)$_POST['app']) : exit;
 	$company = mysqli_real_escape_string($mysqli, $_POST['brand_name']);
 	$name = mysqli_real_escape_string($mysqli, $_POST['from_name']);
 	$username = mysqli_real_escape_string($mysqli, $_POST['from_email']);
-	$password = ran_string(8, 8, true, false, true);
+	$password = ran_string(12, 12, true, false, true);
 	$pass_encrypted = hash('sha512', $password.'PectGtma');
 	
 	//------------------------------------------------------//

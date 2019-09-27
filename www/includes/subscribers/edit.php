@@ -1,10 +1,13 @@
 <?php include('../functions.php');?>
 <?php include('../login/auth.php');?>
-<?php include('../helpers/EmailAddressValidator.php');?>
+<?php require_once('../helpers/EmailAddressValidator.php');?>
 <?php 
-	$subscriber_id = mysqli_real_escape_string($mysqli, $_POST['sid']);
+	$subscriber_id = isset($_POST['sid']) && is_numeric($_POST['sid']) ? mysqli_real_escape_string($mysqli, (int)$_POST['sid']) : exit;
 	$name = isset($_POST['name']) ? mysqli_real_escape_string($mysqli, $_POST['name']) : '';
+	$name = str_replace(array('"', "'"), '', $name);
 	$email = isset($_POST['email']) ? mysqli_real_escape_string($mysqli, $_POST['email']) : '';
+	$note = isset($_POST['note']) ? mysqli_real_escape_string($mysqli, strip_tags($_POST['note'])) : '';
+	$time = time();
 	
 	$i = 0;
 	foreach ($_POST as $key => $value) 
@@ -36,6 +39,9 @@
 	//update email
 	else if($email!='')
 	{
+		//Get app ID
+		$app = isset($_POST['app']) && is_numeric($_POST['app']) ? mysqli_real_escape_string($mysqli, (int)$_POST['app']) : '';
+		
 		$q2 = 'SELECT list FROM subscribers WHERE id = '.$subscriber_id;
 		$r2 = mysqli_query($mysqli, $q2);
 		if ($r2)
@@ -52,18 +58,45 @@
 		}
 		else
 		{
+			//get email's domain
+			$email_explode = explode('@', trim($email));
+			$email_domain = $email_explode[1];
+			
 			//check if email is valid
 			$validator = new EmailAddressValidator;
 			if ($validator->check_email_address($email))
 			{
-				$q = 'UPDATE subscribers SET email = "'.$email.'" WHERE id = '.$subscriber_id;
-				$r = mysqli_query($mysqli, $q);
-				if ($r) echo true;
-				else echo _('Oops! Unable to save, please try again later.');
+				$q2 = '(SELECT id FROM suppression_list WHERE email = "'.trim($email).'" AND app = '.$app.') UNION (SELECT id FROM blocked_domains WHERE domain = "'.$email_domain.'" AND app = '.$app.')';
+				$r2 = mysqli_query($mysqli, $q2);
+				if (mysqli_num_rows($r2) == 0)
+				{
+					$q = 'UPDATE subscribers SET email = "'.$email.'" WHERE id = '.$subscriber_id;
+					$r = mysqli_query($mysqli, $q);
+					if ($r) echo true;
+					else echo _('Oops! Unable to save, please try again later.');
+				}
+				else
+				{
+					//Update block_attempts count				
+					$q3 = 'UPDATE suppression_list SET block_attempts = block_attempts+1, timestamp = "'.$time.'" WHERE email = "'.trim($email).'" AND app = '.$app;
+					$q4 = 'UPDATE blocked_domains SET block_attempts = block_attempts+1, timestamp = "'.$time.'" WHERE domain = "'.$email_domain.'" AND app = '.$app;
+					mysqli_query($mysqli, $q3);
+					mysqli_query($mysqli, $q4);
+					
+					echo _('Email is suppressed.');
+				}
 			}
 			else
 				echo _('Email address is invalid.');
 		}
+	}
+	
+	else if(isset($_POST['note']))
+	{
+		$q = 'UPDATE subscribers SET notes = "'.$note.'" WHERE id = '.$subscriber_id;
+		$r = mysqli_query($mysqli, $q);
+		if ($r) echo true;
+		else echo _('Oops! Unable to save, please try again later.');
 	}
 	
 	//if it is a custom field

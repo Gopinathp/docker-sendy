@@ -1,5 +1,6 @@
 <?php include('includes/functions.php');?>
 <?php if(isset($_COOKIE['logged_in'])){start_app();}?>
+
 <!DOCTYPE html>
 <html>
 	<head>
@@ -9,16 +10,12 @@
 		<meta name="author" content="">
 		<meta name="robots" content="noindex, nofollow">
 		<link rel="Shortcut Icon" type="image/ico" href="<?php echo get_app_info('path');?>/img/favicon.png">
-		<link rel="stylesheet" type="text/css" href="<?php echo get_app_info('path');?>/css/bootstrap.css?3" />
+		<link rel="stylesheet" type="text/css" href="<?php echo get_app_info('path');?>/css/bootstrap.css?27" />
 		<link rel="stylesheet" type="text/css" href="<?php echo get_app_info('path');?>/css/bootstrap-responsive.css" />
 		<link rel="stylesheet" type="text/css" href="<?php echo get_app_info('path');?>/css/responsive-tables.css" />
 		<link rel="stylesheet" type="text/css" href="<?php echo get_app_info('path');?>/css/font-awesome.min.css" />
 		<link rel="apple-touch-icon-precomposed" href="<?php echo get_app_info('path');?>/img/sendy-icon.png" />
-		<!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
-	    <!--[if lt IE 9]>
-	      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
-	    <![endif]-->
-		<link rel="stylesheet" type="text/css" href="<?php echo get_app_info('path');?>/css/all.css?8" />
+		<link rel="stylesheet" type="text/css" href="<?php echo get_app_info('path');?>/css/all.css?28" />
 		<script type="text/javascript" src="<?php echo get_app_info('path');?>/js/jquery-1.9.1.min.js"></script>
 		<script type="text/javascript" src="<?php echo get_app_info('path');?>/js/jquery-migrate-1.1.0.min.js"></script>
 		<script type="text/javascript" src="<?php echo get_app_info('path');?>/js/jquery-ui-1.8.21.custom.min.js"></script>
@@ -26,9 +23,41 @@
 		<script type="text/javascript" src="<?php echo get_app_info('path');?>/js/responsive-tables.js"></script>
 		<script type="text/javascript" src="<?php echo get_app_info('path');?>/js/main.js?3"></script>
 		<link href='https://fonts.googleapis.com/css?family=Roboto:400,400italic,700,700italic' rel='stylesheet' type='text/css'>
+		<link href="https://fonts.googleapis.com/css?family=Questrial" rel="stylesheet">
 		<title><?php echo get_app_info('company');?></title>
 	</head>
 	<body>
+		<?php 			
+		    function catch_fatal_error()
+			{
+			  // Getting Last Error
+			  $last_error =  error_get_last();
+			  
+			  // Check if Last error is of type FATAL
+			  if(isset($last_error['type']) && $last_error['type']==E_ERROR)
+			  {  
+			    // Fatal Error Occurs
+			    echo '
+			    <div class="alert alert-danger" id="wrapper">
+				    <p class="session_error"><h2><span class="icon  icon-exclamation-sign"></span> '._('Error').'</h2></p>
+				    <p class="session_error">
+				    	<b>Message</b>: '.$last_error['message'].'<br/>
+				    	<b>File</b>: '.$last_error['file'].'<br/>
+						<b>Line</b>: '.$last_error['line'].'
+				    </p>
+			    </div></body></html>';
+			  }
+			
+			}
+			register_shutdown_function('catch_fatal_error');		
+			
+			$uri = $_SERVER['REQUEST_URI'];
+			$uri_array = explode('/', $uri);
+			$current_page = $uri_array[count($uri_array)-1];
+			
+			if($current_page != '_install.php')
+				if(_('Login'))
+		?>
 		<div class="navbar navbar-fixed-top">
 		  <div class="separator"></div>
 	      <div class="navbar-inner">
@@ -40,17 +69,46 @@
 	          </a>
 	          	          
 	          <!-- Check if sub user -->
-	          <?php if(!get_app_info('is_sub_user')):?>
-	          <a class="brand" href="<?php echo get_app_info('path');?>/"><img src="https://www.gravatar.com/avatar/<?php echo md5(strtolower(trim(get_app_info('email'))));?>?s=36&d=<?php echo get_app_info('path');?>/img/sendy-avatar.png" title="" class="main-gravatar" onerror="this.src='<?php echo get_app_info('path');?>/img/sendy-avatar.png'"/><?php echo get_app_info('company');?></a>
+	          <?php if(!get_app_info('is_sub_user') && CURRENT_DOMAIN == APP_PATH_DOMAIN):?>
+	          
+		          <a class="brand" href="<?php echo get_app_info('path');?>/"><img src="https://www.gravatar.com/avatar/<?php echo md5(strtolower(trim(get_app_info('email'))));?>?s=36&d=<?php echo get_app_info('path');?>/img/sendy-avatar.png" title="" class="main-gravatar" onerror="this.src='<?php echo get_app_info('path');?>/img/sendy-avatar.png'"/><?php echo get_app_info('company');?></a>
+		          
 	          <?php else:?>
-	          <?php 
-		          $q = 'SELECT brand_logo_filename FROM apps WHERE id = '.get_app_info('app');
-		          $r = mysqli_query($mysqli, $q);
-		          if ($r) while($row = mysqli_fetch_array($r)) $logo_filename = $row['brand_logo_filename'];  
-		          if($logo_filename=='') $logo_image = 'https://www.gravatar.com/avatar/'.md5(strtolower(trim(get_app_info('email')))).'?s=36&d='.get_app_info('path').'/img/sendy-avatar.png';
-		          else $logo_image = get_app_info('path').'/uploads/logos/'.$logo_filename;
-	          ?>
-	          <a class="brand" href="<?php echo get_app_info('path');?>/app?i=<?php echo get_app_info('restricted_to_app');?>"><img src="<?php echo $logo_image;?>" title="" class="main-gravatar"/><?php echo get_app_info('company');?></a>
+	          
+		          <?php 
+			          $is_login_page = basename($_SERVER['SCRIPT_FILENAME'])=='login.php';
+			          $is_index_page = basename($_SERVER['SCRIPT_FILENAME'])=='index.php';
+			          if($is_login_page || $is_index_page)
+				          $q = 'SELECT brand_logo_filename, id FROM apps WHERE custom_domain = "'.CURRENT_DOMAIN.'"';
+				      else
+				          $q = 'SELECT brand_logo_filename FROM apps WHERE id = '.get_app_info('app');
+			          $r = mysqli_query($mysqli, $q);
+			          if ($r) 
+			          {
+				          while($row = mysqli_fetch_array($r)) 
+				          {
+					          $logo_filename = $row['brand_logo_filename'];  
+					          $app_id = isset($row['id']) ? $row['id'] : '';
+					      }
+					  }
+			          if($logo_filename=='') $logo_image = 'https://www.gravatar.com/avatar/'.md5(strtolower(trim(get_app_info('email')))).'?s=36&d='.get_app_info('path').'/img/sendy-avatar.png';
+			          else $logo_image = get_app_info('path').'/uploads/logos/'.$logo_filename;
+			          
+			          if($is_login_page)
+			          {
+				          $q = 'SELECT company FROM login WHERE app = '.$app_id;
+				          $r = mysqli_query($mysqli, $q);
+				          if ($r && mysqli_num_rows($r) > 0) while($row = mysqli_fetch_array($r)) $company = $row['company'];
+				      }
+		          ?>
+		          <a class="brand" href="<?php echo get_app_info('path');?>/app?i=<?php echo get_app_info('restricted_to_app');?>"><img src="<?php echo $logo_image;?>" title="" class="main-gravatar"/><?php echo $is_login_page ? $company : get_app_info('company');?></a>
+		          
+		          <script type="text/javascript">
+			          $(document).ready(function() {
+			          	document.title = "<?php echo $is_login_page ? $company : get_app_info('company');?>";
+			          });
+		          </script>
+		          
 	          <?php endif;?>
 	          
 	          <?php if(currentPage()!='login.php' && currentPage()!='two-factor.php' && currentPage()!='_install.php'): ?>
@@ -144,4 +202,4 @@
 	      </div>
 	    </div>
 	    <div class="container-fluid">
-	    <?php ini_set('display_errors', 0);?>
+	    <?php ini_set('display_errors', isset($_GET['display_errors']) ? 1 : 0);?>

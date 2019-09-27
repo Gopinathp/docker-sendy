@@ -5,7 +5,7 @@ $r_api = mysqli_query($mysqli, $q_api);
 if ($r_api) while($row = mysqli_fetch_array($r_api)) $api_key = $row['api_key'];
 
 //Email validator
-include_once 'EmailAddressValidator.php';
+require_once('EmailAddressValidator.php');
 
 //2 way encrypt function
 function short($in, $to_num = false)

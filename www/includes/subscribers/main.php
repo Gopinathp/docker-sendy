@@ -24,7 +24,7 @@
 	//------------------------------------------------------//
 	{
 		global $mysqli;
-		$q = 'SELECT '.$val.' FROM lists WHERE id = '.mysqli_real_escape_string($mysqli, $_GET['l']).' AND userID = '.get_app_info('main_userID');
+		$q = 'SELECT '.$val.' FROM lists WHERE id = '.mysqli_real_escape_string($mysqli, (int)$_GET['l']).' AND userID = '.get_app_info('main_userID');
 		$r = mysqli_query($mysqli, $q);
 		if ($r && mysqli_num_rows($r) > 0)
 		{
@@ -49,6 +49,34 @@
 				return $row['name'];
 		    }  
 		}
+	}
+	
+	//------------------------------------------------------//
+	function get_seg_data($val, $sid)
+	//------------------------------------------------------//
+	{
+		global $mysqli;
+		$q = 'SELECT '.$val.' FROM seg WHERE id = '.$sid;
+		$r = mysqli_query($mysqli, $q);
+		if ($r && mysqli_num_rows($r) > 0)
+		{
+		    while($row = mysqli_fetch_array($r))
+		    {
+				return $row[$val];
+		    }  
+		}
+	}
+	
+	//------------------------------------------------------//
+	function get_totals_in_seg($val)
+	//------------------------------------------------------//
+	{
+		global $mysqli;
+		$q2 = 'SELECT COUNT(*) AS subscriber_count FROM subscribers_seg WHERE seg_id = '.$val;
+		$r2 = mysqli_query($mysqli, $q2);
+		if ($r2 && mysqli_num_rows($r2) > 0)
+		    while($row = mysqli_fetch_array($r2))
+				return number_format($row['subscriber_count']);
 	}
 	
 	//------------------------------------------------------//
@@ -87,20 +115,27 @@
 	}
 	
 	//------------------------------------------------------//
-	function get_totals($val1, $val2)
+	function get_totals($val1, $val2, $val3='')
 	//------------------------------------------------------//
 	{
 		global $mysqli;
+		
+		$lid = $val3=='' ? mysqli_real_escape_string($mysqli, (int)$_GET['l']) : $val3;
+		
 		if($val1=='' && $val2=='')
 			$s_more = '';
 		else if($val1=='a')
 			$s_more = 'AND unsubscribed = 0 AND bounced = 0 AND complaint = 0 AND confirmed = 1';
 		else if($val1=='unsubscribed')
 			$s_more = 'AND '.$val1.' = '.$val2.' AND bounced = 0';
+		else if($val1=='gdpr')
+			$s_more = 'AND unsubscribed = 0 AND bounced = 0 AND complaint = 0 AND confirmed = 1 AND '.$val1.' = '.$val2;
+		else if($val1=='confirmed')
+			$s_more = 'AND bounced = 0 AND complaint = 0 AND '.$val1.' = '.$val2;
 		else
 			$s_more = 'AND '.$val1.' = '.$val2;
 		
-		$q = 'SELECT COUNT(*) FROM subscribers WHERE list = '.mysqli_real_escape_string($mysqli, $_GET['l']).' '.$s_more;
+		$q = 'SELECT COUNT(*) FROM subscribers use index (s_list) WHERE list = '.$lid.' '.$s_more;
 		$r = mysqli_query($mysqli, $q);
 		if ($r) while($row = mysqli_fetch_array($r)) return number_format($row['COUNT(*)']);
 	}
@@ -126,7 +161,23 @@
 	//------------------------------------------------------//
 	{
 		global $mysqli;
-		$q = 'SELECT COUNT(*) FROM ares WHERE list = '.mysqli_real_escape_string($mysqli, $_GET['l']);
+		$q = 'SELECT COUNT(*) FROM ares WHERE list = '.mysqli_real_escape_string($mysqli, (int)$_GET['l']);
+		$r = mysqli_query($mysqli, $q);
+		if ($r && mysqli_num_rows($r) > 0)
+		{
+		    while($row = mysqli_fetch_array($r))
+		    {
+				return $row['COUNT(*)'];
+		    }  
+		}
+	}
+	
+	//------------------------------------------------------//
+	function get_segments_count()
+	//------------------------------------------------------//
+	{
+		global $mysqli;
+		$q = 'SELECT COUNT(*) FROM seg WHERE list = '.mysqli_real_escape_string($mysqli, (int)$_GET['l']);
 		$r = mysqli_query($mysqli, $q);
 		if ($r && mysqli_num_rows($r) > 0)
 		{
@@ -142,7 +193,7 @@
 	//------------------------------------------------------//
 	{
 		global $mysqli;
-		$q = 'SELECT custom_fields FROM lists WHERE app = "'.get_app_info('app').'" AND id = '.mysqli_real_escape_string($mysqli, $_GET['l']);
+		$q = 'SELECT custom_fields FROM lists WHERE app = "'.get_app_info('app').'" AND id = '.mysqli_real_escape_string($mysqli, (int)$_GET['l']);
 		$r = mysqli_query($mysqli, $q);
 		if ($r && mysqli_num_rows($r) > 0)
 		{
@@ -170,6 +221,7 @@
 		global $u;
 		global $b;
 		global $cp;
+		global $g;
 		
 		$curpage = $p;
 		
@@ -195,6 +247,8 @@
 			$more = '&b='.$b;
 		else if($cp!='')
 			$more = '&cp='.$cp;
+		else if($g!='')
+			$more = '&g='.$g;
 		
 		if($total_subs > $limit)
 		{

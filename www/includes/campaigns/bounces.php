@@ -48,6 +48,7 @@
 	{
 		//detect bounces
 		$obj = json_decode($data->Message);
+		if(!isset($obj->{'bounce'})) exit;
 		$notificationType = $obj->{'notificationType'};
 		$bounceType = $obj->{'bounce'}->{'bounceType'};
 		$problem_email = $obj->{'bounce'}->{'bouncedRecipients'};

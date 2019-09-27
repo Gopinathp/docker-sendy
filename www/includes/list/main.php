@@ -97,7 +97,7 @@
 		{
 			while($row = mysqli_fetch_array($r))
 		    {
-				return $row['COUNT(list)'];
+				return number_format($row['COUNT(list)']);
 		    } 
 		}
 	}
@@ -107,15 +107,17 @@
 	//------------------------------------------------------//
 	{
 		global $mysqli;
-		$q = 'SELECT COUNT(list) FROM subscribers use index (s_list) WHERE list = '.$lid.' AND unsubscribed = 1';
+		$q = 'SELECT COUNT(list) FROM subscribers use index (s_list) WHERE list = '.$lid.' AND unsubscribed = 1 AND bounced = 0';
 		$r = mysqli_query($mysqli, $q);
-		if ($r) while($row = mysqli_fetch_array($r)) return $row['COUNT(list)'];
+		if ($r) while($row = mysqli_fetch_array($r)) return number_format($row['COUNT(list)']);
 	}
 	
 	//------------------------------------------------------//
 	function get_unsubscribers_percentage($subscribers, $unsubscribers)
 	//------------------------------------------------------//
 	{
+		$subscribers = str_replace(',', '', $subscribers);
+		$unsubscribers = str_replace(',', '', $unsubscribers);
 		$sub_unsub_total = $subscribers+$unsubscribers;
 		$unsub_percentage = $sub_unsub_total==0 ? round($unsubscribers * 100, 2) : round($unsubscribers / ($sub_unsub_total) * 100, 2);
 		return $unsub_percentage;
@@ -128,15 +130,134 @@
 		global $mysqli;
 		$q = 'SELECT COUNT(list) FROM subscribers use index (s_list) WHERE list = '.$lid.' AND bounced = 1';
 		$r = mysqli_query($mysqli, $q);
-		if ($r) while($row = mysqli_fetch_array($r)) return $row['COUNT(list)'];
+		if ($r) while($row = mysqli_fetch_array($r)) return number_format($row['COUNT(list)']);
 	}
 	
 	//------------------------------------------------------//
 	function get_bounced_percentage($bouncers, $subscribers)
 	//------------------------------------------------------//
 	{
+		$subscribers = str_replace(',', '', $subscribers);
+		$bouncers = str_replace(',', '', $bouncers);
 		$bounce_subs_total = $subscribers+$bouncers;
 		$bounce_percentage = $bounce_subs_total==0 ? round($bouncers * 100, 2) : round($bouncers / ($bounce_subs_total) * 100, 2);
 		return $bounce_percentage;
+	}
+	
+	//------------------------------------------------------//
+	function get_segment_count($lid)
+	//------------------------------------------------------//
+	{
+		global $mysqli;
+		$q = 'SELECT COUNT(id) FROM seg WHERE list = '.$lid;
+		$r = mysqli_query($mysqli, $q);
+		if ($r) while($row = mysqli_fetch_array($r)) return $row['COUNT(id)'];
+	}
+	
+	//------------------------------------------------------//
+	function get_ar_count($lid)
+	//------------------------------------------------------//
+	{
+		global $mysqli;
+		$q = 'SELECT COUNT(id) FROM ares WHERE list = '.$lid;
+		$r = mysqli_query($mysqli, $q);
+		if ($r) while($row = mysqli_fetch_array($r)) return $row['COUNT(id)'];
+	}
+	
+	//------------------------------------------------------//
+	function get_gdpr_count($lid)
+	//------------------------------------------------------//
+	{
+		global $mysqli;
+		$q = 'SELECT COUNT(id) FROM subscribers use index (s_list) WHERE unsubscribed = 0 AND bounced = 0 AND complaint = 0 AND confirmed = 1 AND gdpr = 1 AND list = '.$lid;
+		$r = mysqli_query($mysqli, $q);
+		if ($r) while($row = mysqli_fetch_array($r)) return number_format($row['COUNT(id)']);
+	}
+	
+	//------------------------------------------------------//
+	function get_gdpr_percentage($lid, $gdpr_subs)
+	//------------------------------------------------------//
+	{
+		global $mysqli;
+		
+		//Get subscriber count
+		$q = "SELECT COUNT(*) FROM subscribers WHERE list = '$lid' AND unsubscribed = 0 AND bounced = 0 AND complaint = 0 AND confirmed = 1";
+		$r = mysqli_query($mysqli, $q);
+		if ($r) while($row = mysqli_fetch_array($r)) $subscribers = $row['COUNT(*)'];
+		
+		$subscribers = str_replace(',', '', $subscribers);
+		$gdpr_subs = str_replace(',', '', $gdpr_subs);
+		$gdpr_percentage = $gdpr_subs==0 ? 0 : round($gdpr_subs / ($subscribers) * 100, 2);
+		return $gdpr_percentage;
+	}
+	
+	//------------------------------------------------------//
+	function has_gdpr_subscribers()
+	//------------------------------------------------------//
+	{
+		global $mysqli;
+		$q = 'SELECT COUNT(subscribers.gdpr) as gdpr_subs_no FROM subscribers, lists, apps WHERE subscribers.list = lists.id AND lists.app = apps.id AND subscribers.gdpr = 1 AND apps.id = '.get_app_info('app');
+		$r = mysqli_query($mysqli, $q);
+		if ($r) while($row = mysqli_fetch_array($r)) $gdpr_subs_no = $row['gdpr_subs_no'];
+		if($gdpr_subs_no > 0) return true;
+		else return false;
+	}
+	
+	//------------------------------------------------------//
+	function totals($app)
+	//------------------------------------------------------//
+	{
+		global $mysqli;
+			
+		$q = 'SELECT id FROM lists WHERE app = '.$app.' AND userID = '.get_app_info('main_userID');
+		$r = mysqli_query($mysqli, $q);
+		if ($r) return mysqli_num_rows($r);
+	}
+	
+	//------------------------------------------------------//
+	function pagination($limit)
+	//------------------------------------------------------//
+	{		
+		global $p;
+		
+		$curpage = $p;
+		
+		$next_page_num = 0;
+		$prev_page_num = 0;
+		
+		$total_lists = totals($_GET['i']);
+		$total_pages = @ceil($total_lists/$limit);
+		
+		if($total_lists > $limit)
+		{
+			if($curpage>=2)
+			{
+				$next_page_num = $curpage+1;
+				$prev_page_num = $curpage-1;
+			}
+			else
+			{
+				$next_page_num = 2;
+			}
+		
+			echo '<div class="btn-group" id="pagination">';
+			
+			//Prev btn
+			if($curpage>=2)
+				if($prev_page_num==1)
+					echo '<button class="btn" onclick="window.location=\''.get_app_info('path').'/list?i='.get_app_info('app').'\'"><span class="icon icon icon-arrow-left"></span></button>';
+				else
+					echo '<button class="btn" onclick="window.location=\''.get_app_info('path').'/list?i='.get_app_info('app').'&p='.$prev_page_num.'\'"><span class="icon icon icon-arrow-left"></span></button>';
+			else
+				echo '<button class="btn disabled"><span class="icon icon icon-arrow-left"></span></button>';
+			
+			//Next btn
+			if($curpage==$total_pages)
+				echo '<button class="btn disabled"><span class="icon icon icon-arrow-right"></span></button>';
+			else
+				echo '<button class="btn" onclick="window.location=\''.get_app_info('path').'/list?i='.get_app_info('app').'&p='.$next_page_num.'\'"><span class="icon icon icon-arrow-right"></span></button>';
+					
+			echo '</div>';
+		}
 	}
 ?>

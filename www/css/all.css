@@ -18,9 +18,6 @@ body {
 footer{
 	font-size: 12px;
 }
-footer a{
-	text-decoration: underline;
-}
 #html{
 	width: 100%;
 	height: 397px;
@@ -127,7 +124,7 @@ select, input[type="file"]{
 	margin-left: 0px;
 }
 #attachments li{
-	background: #F4F4F4;
+	background: #fffdef;
 	padding: 5px 10px;
 }
 .tab-active{
@@ -173,7 +170,7 @@ select, input[type="file"]{
 	font-size: 11px;
 	color: #7f7f7f;
 }
-#campaign-save-only-btn{
+#campaign-save-only-btn, #autoresponder-save-only-btn{
 	position:relative;
 	top: 1px;
 	right: 5px;
@@ -185,8 +182,6 @@ select, input[type="file"]{
 }
 #two-factor-setup{
 	display: none;
-	background: #f9f9f9;
-	padding: 20px;
 }
 .google-auth{
 	float:left; 
@@ -204,4 +199,162 @@ select, input[type="file"]{
 	padding-left: 15px; 
 	color: #818181; 
 	font-size: 12px;
+}
+#email_list option:disabled, #email_list_exclude option:disabled {
+    color: #dddddd;
+}
+.date1, .date2, .true-false-dropdown{
+	float: left; 
+	margin-left: 15px;
+}
+.datepicker-label{
+	float:left;
+}
+.datepicker-and{
+	float:left; 
+	margin: 5px 15px 0 0;
+}
+.condition-dropdown{
+	float: left;
+	margin-bottom: 20px;
+}
+.date-condition-dropdown, .text-condition-dropdown, .boolean-condition-dropdown{
+	float:left; 
+	margin-left: 15px;
+}
+.text-value{
+	float: left;
+	margin: 1px 0 0px 15px; 
+}
+#and-btn{
+	clear:both;
+	margin-bottom: 20px;
+}
+.or-btn{
+	float: right;
+}
+.delete-btn{
+	float: right;
+	margin: 5px 0 0 15px;
+}
+.or-group{
+	clear: both;
+}
+.group .well{
+	padding-top: 35px;
+}
+.last-update, .seg-note{
+	color:#797979;
+	font-style: italic;
+}
+.export-seg-csv{
+	float: right;
+}
+.dashed-box{
+	padding: 10px 20px;
+	border: 1px dashed #c6c6c6;
+}
+.rounded-dashed-box{
+	border: 1px dashed #eeeeee; 
+	padding: 25px 20px 10px 20px; 
+	-webkit-border-radius: 5px; 
+	-moz-border-radius: 5px; 
+	border-radius: 5px;
+}
+.sidebar-box{
+	background: white;
+	-webkit-border-radius: 5px; 
+	-moz-border-radius: 5px; 
+	border-radius: 5px;
+	
+	-webkit-box-shadow: 0px 10px 41px -26px rgba(0,0,0,0.75);
+	-moz-box-shadow: 0px 10px 41px -26px rgba(0,0,0,0.75);
+	box-shadow: 0px 10px 41px -26px rgba(0,0,0,0.75);
+	
+	-webkit-transition: box-shadow 0.1s linear;
+	-moz-transition: box-shadow 0.1s linear;
+	-ms-transition: box-shadow 0.1s linear;
+	-o-transition: box-shadow 0.1s linear;
+	transition: box-shadow 0.1s linear;
+}
+.sidebar-box:hover{
+	-webkit-box-shadow: 0px 10px 41px -18px rgba(0,0,0,0.75);
+	-moz-box-shadow: 0px 10px 41px -18px rgba(0,0,0,0.75);
+	box-shadow: 0px 10px 41px -18px rgba(0,0,0,0.75);
+	
+	-webkit-transition: box-shadow 0.1s linear;
+	-moz-transition: box-shadow 0.1s linear;
+	-ms-transition: box-shadow 0.1s linear;
+	-o-transition: box-shadow 0.1s linear;
+	transition: box-shadow 0.1s linear;
+}
+.sidebar-box ul li.active a{
+	color: white;
+	text-shadow: none;
+	background: #303030;
+}
+.subscribeform-left{
+	float:left; 
+	width: 480px;
+}
+.subscribeform-right{
+	float:right; 
+	width: 360px;
+}
+#form-code{
+	height: 90px; 
+	overflow-y: scroll;
+}
+#marketing-permission, #what-to-expect
+{
+	width: 350px;
+}
+#gdpr-save-btn{
+	float: left;
+	margin-top: 5px;
+}
+#gdpr-msg{
+	float: left;
+	margin: 10px 0 0 0;
+	color: #56864e;
+	clear: both;
+}
+#preview-form{
+	float: left; 
+	margin:10px 0 0 10px;
+}
+#import-suppression-list-csv, #import-suppression-list-csv2, #import-blocked-domain-list-csv
+{
+	float:left; 
+	margin-bottom: 40px;
+	display: none;
+}
+#cancel-btn, .close-import-btn, #close-add-list-btn
+{
+	margin-left: 10px;
+}
+#subscriber-info
+{
+	width: 700px; 
+	margin-left: -350px;
+}
+#subscriber-notes
+{
+	max-height: 200px; 
+	overflow-y: scroll; 
+	font-size: 12px; 
+	line-height: 18px;
+}
+#note
+{
+	font-size: 12px;
+	line-height: 18px;
+}
+#list-form{
+	display:none;
+	max-width: 290px; 
+	margin-top: 20px;
+}
+.blacklist-alerts{
+	width: 80%;
 }

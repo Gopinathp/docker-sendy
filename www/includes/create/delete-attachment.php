@@ -5,14 +5,14 @@
 	//                      	INIT                       //
 	//------------------------------------------------------//
 	
-	$filename = $_POST['filename'];
-	$campaign_id = $_POST['campaign_id'];
+	$filename = mysqli_real_escape_string($mysqli, filter_var($_POST['filename'],FILTER_SANITIZE_SPECIAL_CHARS));
+	$campaign_id = isset($_POST['campaign_id']) && is_numeric($_POST['campaign_id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['campaign_id']) : exit;
 	
 	//------------------------------------------------------//
 	//                      FUNCTIONS                       //
 	//------------------------------------------------------//
 	
 	//delete file
-	if(unlink('../../uploads/attachments/'.$campaign_id.'/'.$filename))
+	if(unlink('../../uploads/attachments/'.$campaign_id.'/'.basename($filename)))
 		echo true;
 ?>

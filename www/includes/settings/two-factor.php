@@ -2,7 +2,11 @@
 <?php include('../login/auth.php');?>
 <?php include('../helpers/two-factor/lib/otphp.php');?>
 <?php 
-	$userID = mysqli_real_escape_string($mysqli, $_POST['uid']);
+	$userID = isset($_POST['uid']) && is_numeric($_POST['uid']) ? mysqli_real_escape_string($mysqli, (int)$_POST['uid']) : exit;
+	
+	//If userID POSTed here isn't the userID this user logs in with, then exit.
+	if($userID != get_app_info('userID')) exit;
+	
 	$enable = is_numeric($_POST['enable']) ? $_POST['enable'] : exit;
 	$key = mysqli_real_escape_string($mysqli, $_POST['key']);
 	if(is_numeric($_POST['otp'])) $otp_code = $_POST['otp'];

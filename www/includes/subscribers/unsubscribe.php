@@ -1,7 +1,7 @@
 <?php include('../functions.php');?>
 <?php include('../login/auth.php');?>
 <?php 
-	$subscriber_id = mysqli_real_escape_string($mysqli, $_POST['subscriber_id']);
+	$subscriber_id = isset($_POST['subscriber_id']) && is_numeric($_POST['subscriber_id']) ? mysqli_real_escape_string($mysqli, (int)$_POST['subscriber_id']) : exit;
 	$action = $_POST['action'];
 	$time = time();
 	
